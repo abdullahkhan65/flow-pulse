@@ -1,0 +1,563 @@
+'use client';
+
+import { useEffect, useState, useCallback } from 'react';
+import useSWR from 'swr';
+import { api, MemberScores, WeeklyScore, PreviewData, TodaySnapshot } from '@/lib/api';
+import {
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
+  ResponsiveContainer, Cell, LineChart, Line,
+} from 'recharts';
+import { format, parseISO } from 'date-fns';
+import clsx from 'clsx';
+import {
+  RefreshCw, Info, Clock, Calendar, MessageSquare, Zap,
+  Moon, AlertTriangle, CheckCircle, TrendingUp, TrendingDown,
+} from 'lucide-react';
+
+// ─── Sub-components ──────────────────────────────────────────────────────────
+
+function ConfidenceBadge({ confidence, days, needed }: {
+  confidence: PreviewData['confidence'];
+  days: number;
+  needed: number;
+}) {
+  const styles = {
+    none:   'bg-gray-100 text-gray-600',
+    low:    'bg-amber-100 text-amber-700',
+    medium: 'bg-blue-100 text-blue-700',
+    high:   'bg-green-100 text-green-700',
+  };
+  const labels = {
+    none:   'No data yet',
+    low:    'Early estimate',
+    medium: 'Partial week',
+    high:   'Good confidence',
+  };
+  return (
+    <span className={clsx('inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium', styles[confidence])}>
+      <span className="w-1.5 h-1.5 rounded-full bg-current" />
+      {labels[confidence]} · {days}/{needed} days
+    </span>
+  );
+}
+
+function DataFreshnessChip({ lastSyncedAt }: { lastSyncedAt: string | null }) {
+  if (!lastSyncedAt) return null;
+  const syncDate = new Date(lastSyncedAt);
+  const diffMins = Math.floor((Date.now() - syncDate.getTime()) / 60000);
+  const label = diffMins < 2 ? 'Just synced' :
+                diffMins < 60 ? `${diffMins}m ago` :
+                `${Math.floor(diffMins / 60)}h ago`;
+
+  return (
+    <span className="text-xs text-gray-400 flex items-center gap-1">
+      <Clock className="w-3 h-3" /> {label}
+    </span>
+  );
+}
+
+function TodayCard({ snapshot }: { snapshot: TodaySnapshot }) {
+  const stats = [
+    {
+      icon: Calendar,
+      label: 'Meetings today',
+      value: snapshot.meetingsToday,
+      sub: `${snapshot.meetingMinutesToday}min total`,
+      color: 'text-blue-600',
+      bg: 'bg-blue-50',
+      alert: snapshot.meetingMinutesToday > 300,
+    },
+    {
+      icon: Zap,
+      label: 'Focus time',
+      value: `${Math.round(snapshot.focusMinutesToday / 60 * 10) / 10}h`,
+      sub: `${snapshot.focusMinutesToday}min uninterrupted`,
+      color: 'text-green-600',
+      bg: 'bg-green-50',
+      alert: snapshot.focusMinutesToday < 60,
+    },
+    {
+      icon: MessageSquare,
+      label: 'Slack messages',
+      value: snapshot.slackMessagesToday,
+      sub: 'sent today',
+      color: 'text-purple-600',
+      bg: 'bg-purple-50',
+      alert: snapshot.slackMessagesToday > 80,
+    },
+    {
+      icon: Moon,
+      label: 'After-hours',
+      value: snapshot.afterHoursEventsToday,
+      sub: snapshot.backToBackToday > 0 ? `+ ${snapshot.backToBackToday} back-to-back` : 'events',
+      color: snapshot.afterHoursEventsToday > 0 ? 'text-amber-600' : 'text-gray-500',
+      bg: snapshot.afterHoursEventsToday > 0 ? 'bg-amber-50' : 'bg-gray-50',
+      alert: snapshot.afterHoursEventsToday > 2,
+    },
+  ];
+
+  return (
+    <div className="card p-5">
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-sm font-semibold text-gray-700">Today's Snapshot</h2>
+        <span className="text-xs text-gray-400">{format(new Date(), 'EEEE, MMM d')}</span>
+      </div>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        {stats.map((s) => (
+          <div key={s.label} className={clsx('rounded-xl p-4', s.bg)}>
+            <div className="flex items-center justify-between mb-2">
+              <s.icon className={clsx('w-4 h-4', s.color)} />
+              {s.alert && <AlertTriangle className="w-3.5 h-3.5 text-amber-500" />}
+            </div>
+            <div className={clsx('text-2xl font-bold', s.color)}>{s.value}</div>
+            <div className="text-xs text-gray-600 mt-0.5 font-medium">{s.label}</div>
+            <div className="text-xs text-gray-400 mt-0.5">{s.sub}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function WeekSoFarCard({ data, daysCollected }: {
+  data: NonNullable<PreviewData['thisWeekSoFar']>;
+  daysCollected: number;
+}) {
+  return (
+    <div className="card p-5 border-l-4 border-brand-400">
+      <div className="flex items-center justify-between mb-4">
+        <div>
+          <h2 className="text-sm font-semibold text-gray-700">This Week So Far</h2>
+          <p className="text-xs text-gray-400 mt-0.5">Based on {daysCollected} day{daysCollected !== 1 ? 's' : ''} of data</p>
+        </div>
+      </div>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        {[
+          { label: 'Total meetings', value: data.totalMeetings, sub: `${data.totalMeetingMinutes}min total` },
+          { label: 'Avg meeting/day', value: `${data.avgMeetingMinutesPerDay}min`, sub: data.backToBackMeetings > 0 ? `${data.backToBackMeetings} back-to-back` : 'no back-to-back' },
+          { label: 'Avg focus/day', value: `${data.avgFocusMinutesPerDay}min`, sub: `${data.totalFocusMinutes}min total` },
+          { label: 'After-hours', value: data.afterHoursEvents, sub: data.totalSlackMessages > 0 ? `${data.totalSlackMessages} Slack msgs` : 'events' },
+        ].map((item) => (
+          <div key={item.label}>
+            <div className="text-lg font-bold text-gray-900">{item.value}</div>
+            <div className="text-xs font-medium text-gray-600">{item.label}</div>
+            <div className="text-xs text-gray-400">{item.sub}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function PartialScoreCard({ label, score, description, color, isInverted = false }: {
+  label: string;
+  score: number;
+  description: string;
+  color: string;
+  isInverted?: boolean;
+}) {
+  const displayScore = Math.round(score);
+  return (
+    <div className="card p-4">
+      <div className="flex items-start justify-between mb-2">
+        <span className="text-sm text-gray-600 leading-tight">{label}</span>
+        <span className="text-lg font-bold ml-2 flex-shrink-0" style={{ color }}>
+          {displayScore}
+        </span>
+      </div>
+      <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden mb-2">
+        <div
+          className="h-full rounded-full transition-all duration-700"
+          style={{ width: `${score}%`, backgroundColor: color }}
+        />
+      </div>
+      <p className="text-xs text-gray-400 leading-relaxed">{description}</p>
+    </div>
+  );
+}
+
+function SyncingState({ onDone }: { onDone: (data: PreviewData) => void }) {
+  const [phase, setPhase] = useState(0);
+  const phases = [
+    'Connecting to Google Calendar…',
+    'Reading meeting metadata…',
+    'Analyzing focus time blocks…',
+    'Computing your scores…',
+  ];
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setPhase((p) => Math.min(p + 1, phases.length - 1));
+    }, 1200);
+
+    api.syncNow().then((data) => {
+      clearInterval(interval);
+      onDone(data);
+    }).catch(() => clearInterval(interval));
+
+    return () => clearInterval(interval);
+  }, []);
+
+  return (
+    <div className="card p-12 flex flex-col items-center text-center">
+      <div className="relative w-16 h-16 mb-6">
+        <div className="w-16 h-16 border-4 border-brand-100 rounded-full" />
+        <div className="absolute inset-0 w-16 h-16 border-4 border-brand-500 border-t-transparent rounded-full animate-spin" />
+        <div className="absolute inset-0 flex items-center justify-center">
+          <Calendar className="w-6 h-6 text-brand-500" />
+        </div>
+      </div>
+      <h3 className="font-semibold text-gray-900 mb-2">Syncing your data…</h3>
+      <p className="text-sm text-gray-500 mb-6 max-w-xs">{phases[phase]}</p>
+      <div className="flex gap-1">
+        {phases.map((_, i) => (
+          <div
+            key={i}
+            className={clsx(
+              'h-1 rounded-full transition-all duration-500',
+              i <= phase ? 'w-8 bg-brand-500' : 'w-2 bg-gray-200',
+            )}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function NoIntegrationState() {
+  return (
+    <div className="card p-12 text-center">
+      <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+        <Calendar className="w-8 h-8 text-gray-400" />
+      </div>
+      <h3 className="font-semibold text-gray-900 mb-2">No integrations connected</h3>
+      <p className="text-gray-500 text-sm max-w-xs mx-auto mb-6">
+        Connect Google Calendar to start seeing your meeting load, focus time, and work pattern data.
+      </p>
+      <a href="/dashboard/settings" className="btn-primary inline-flex">
+        Connect integrations →
+      </a>
+    </div>
+  );
+}
+
+function ScoreCard({ label, score, description, color }: {
+  label: string; score: number; description: string; color: string;
+}) {
+  return (
+    <div className="card p-5">
+      <div className="flex items-center justify-between mb-3">
+        <span className="text-sm text-gray-600">{label}</span>
+        <span className="text-xl font-bold" style={{ color }}>{Math.round(score)}</span>
+      </div>
+      <div className="h-2 bg-gray-100 rounded-full overflow-hidden mb-3">
+        <div className="h-full rounded-full transition-all duration-700" style={{ width: `${score}%`, backgroundColor: color }} />
+      </div>
+      <p className="text-xs text-gray-500">{description}</p>
+    </div>
+  );
+}
+
+// ─── Main page ───────────────────────────────────────────────────────────────
+
+export default function MyScoresPage() {
+  const [syncing, setSyncing] = useState(false);
+  const [previewData, setPreviewData] = useState<PreviewData | null>(null);
+  const [hasTriggeredInitialSync, setHasTriggeredInitialSync] = useState(false);
+
+  const { data: scores, isLoading: scoresLoading } = useSWR<MemberScores>(
+    'my-scores',
+    () => api.getMyScores(8),
+  );
+
+  const { data: preview, isLoading: previewLoading, mutate: mutatePreview } = useSWR<PreviewData>(
+    'preview',
+    () => api.getPreview(),
+    { revalidateOnFocus: false },
+  );
+
+  const activePreview = previewData ?? preview;
+  const hasWeeklyScores = (scores?.weeklyScores?.length ?? 0) > 0;
+  const hasAnyData = activePreview?.daysCollected && activePreview.daysCollected > 0;
+  const noIntegrationEver = !scoresLoading && !previewLoading && !hasWeeklyScores && activePreview?.lastSyncedAt === null;
+
+  // On first load: if no preview data at all, trigger a sync automatically
+  useEffect(() => {
+    if (!previewLoading && !hasTriggeredInitialSync && !hasWeeklyScores && activePreview?.daysCollected === 0 && activePreview?.lastSyncedAt === null) {
+      setHasTriggeredInitialSync(true);
+      setSyncing(true);
+    }
+  }, [previewLoading, hasWeeklyScores, activePreview, hasTriggeredInitialSync]);
+
+  const handleManualSync = useCallback(async () => {
+    setSyncing(true);
+  }, []);
+
+  const handleSyncDone = useCallback((data: PreviewData) => {
+    setPreviewData(data);
+    setSyncing(false);
+    mutatePreview(data, false);
+  }, [mutatePreview]);
+
+  const getScoreColor = (score: number) =>
+    score >= 75 ? '#EF4444' : score >= 50 ? '#F59E0B' : '#10B981';
+
+  const isLoading = scoresLoading || previewLoading;
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin w-8 h-8 border-2 border-brand-500 border-t-transparent rounded-full" />
+      </div>
+    );
+  }
+
+  // Show syncing animation (auto or manual)
+  if (syncing) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">My Scores</h1>
+            <p className="text-gray-600 text-sm mt-1">Your personal health signals</p>
+          </div>
+        </div>
+        <SyncingState onDone={handleSyncDone} />
+      </div>
+    );
+  }
+
+  const latest: WeeklyScore | undefined = scores?.weeklyScores[0];
+  const chartData = scores?.weeklyScores.slice(0, 6).reverse().map((w) => ({
+    week: format(parseISO(w.week_start), 'MMM d'),
+    risk: Math.round(w.burnout_risk_score),
+    focus: Math.round(w.focus_score),
+  })) || [];
+  const riskFlags = latest?.score_breakdown?.riskFlags || activePreview?.partialScores?.riskFlags || [];
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">My Scores</h1>
+          <p className="text-gray-600 text-sm mt-1">Your personal health signals — only visible to you and your manager</p>
+        </div>
+        <div className="flex items-center gap-3">
+          {activePreview && <DataFreshnessChip lastSyncedAt={activePreview.lastSyncedAt} />}
+          <button
+            onClick={handleManualSync}
+            className="btn-secondary text-xs"
+          >
+            <RefreshCw className="w-3.5 h-3.5" />
+            Refresh
+          </button>
+        </div>
+      </div>
+
+      {/* No integrations at all */}
+      {noIntegrationEver && <NoIntegrationState />}
+
+      {/* Has data — show everything */}
+      {!noIntegrationEver && (
+        <>
+          {/* Today snapshot — always shown first if available */}
+          {activePreview?.todaySnapshot && (
+            <TodayCard snapshot={activePreview.todaySnapshot} />
+          )}
+
+          {/* Partial week view — shown when no completed weekly scores yet */}
+          {!hasWeeklyScores && activePreview?.daysCollected !== undefined && (
+            <div className="space-y-4">
+              {/* Confidence / data collection progress banner */}
+              <div className="card p-4 flex items-start gap-3 border-brand-200 bg-brand-50">
+                <Info className="w-4 h-4 text-brand-500 mt-0.5 flex-shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <p className="text-sm font-medium text-brand-900">
+                      Week in progress
+                    </p>
+                    <ConfidenceBadge
+                      confidence={activePreview.confidence}
+                      days={activePreview.daysCollected}
+                      needed={activePreview.daysNeededForFull}
+                    />
+                  </div>
+                  <p className="text-xs text-brand-700 mt-1">
+                    {activePreview.daysCollected === 0
+                      ? 'Your calendar was just synced. Data will appear below after the first day is processed.'
+                      : `Scores shown below are estimated from ${activePreview.daysCollected} day${activePreview.daysCollected !== 1 ? 's' : ''} of data. Full scores are computed after 7 days.`}
+                  </p>
+                  {/* Progress bar */}
+                  <div className="mt-3 flex items-center gap-2">
+                    <div className="flex-1 h-1.5 bg-brand-200 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-brand-500 rounded-full transition-all duration-700"
+                        style={{ width: `${Math.min(100, (activePreview.daysCollected / activePreview.daysNeededForFull) * 100)}%` }}
+                      />
+                    </div>
+                    <span className="text-xs text-brand-600 font-medium">
+                      {activePreview.daysNeededForFull - activePreview.daysCollected} day{activePreview.daysNeededForFull - activePreview.daysCollected !== 1 ? 's' : ''} until full scores
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Week so far stats */}
+              {activePreview.thisWeekSoFar && (
+                <WeekSoFarCard
+                  data={activePreview.thisWeekSoFar}
+                  daysCollected={activePreview.daysCollected}
+                />
+              )}
+
+              {/* Partial score cards */}
+              {activePreview.partialScores && (
+                <div>
+                  <div className="flex items-center justify-between mb-3">
+                    <h2 className="text-sm font-semibold text-gray-700">Estimated Scores</h2>
+                    <ConfidenceBadge
+                      confidence={activePreview.confidence}
+                      days={activePreview.daysCollected}
+                      needed={activePreview.daysNeededForFull}
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                    <PartialScoreCard
+                      label="Burnout Risk"
+                      score={activePreview.partialScores.burnoutRiskScore}
+                      description="Composite health signal"
+                      color={getScoreColor(activePreview.partialScores.burnoutRiskScore)}
+                    />
+                    <PartialScoreCard
+                      label="Meeting Load"
+                      score={activePreview.partialScores.meetingLoadScore}
+                      description="Meeting burden vs available hours"
+                      color={getScoreColor(activePreview.partialScores.meetingLoadScore)}
+                    />
+                    <PartialScoreCard
+                      label="Focus Time"
+                      score={activePreview.partialScores.focusScore}
+                      description="Uninterrupted deep-work — higher is better"
+                      color={activePreview.partialScores.focusScore >= 60 ? '#10B981' : activePreview.partialScores.focusScore >= 40 ? '#F59E0B' : '#EF4444'}
+                    />
+                    <PartialScoreCard
+                      label="Context Switching"
+                      score={activePreview.partialScores.contextSwitchScore}
+                      description="Switching between tools and tasks"
+                      color={getScoreColor(activePreview.partialScores.contextSwitchScore)}
+                    />
+                    <PartialScoreCard
+                      label="Slack Interrupts"
+                      score={activePreview.partialScores.slackInterruptScore}
+                      description="Slack volume and distribution"
+                      color={getScoreColor(activePreview.partialScores.slackInterruptScore)}
+                    />
+                    <PartialScoreCard
+                      label="After Hours"
+                      score={activePreview.partialScores.afterHoursScore}
+                      description="Activity outside work hours"
+                      color={getScoreColor(activePreview.partialScores.afterHoursScore)}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Completed weekly scores — shown once we have history */}
+          {hasWeeklyScores && latest && (
+            <>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                <ScoreCard label="Burnout Risk" score={latest.burnout_risk_score} description="Composite health signal — lower is healthier" color={getScoreColor(latest.burnout_risk_score)} />
+                <ScoreCard label="Meeting Load" score={latest.meeting_load_score} description="Time consumed by meetings vs work hours" color={getScoreColor(latest.meeting_load_score)} />
+                <ScoreCard label="Focus Time" score={latest.focus_score} description="Uninterrupted deep-work — higher is better" color={latest.focus_score >= 60 ? '#10B981' : latest.focus_score >= 40 ? '#F59E0B' : '#EF4444'} />
+                <ScoreCard label="Context Switching" score={latest.context_switch_score} description="Switching between tools and tasks" color={getScoreColor(latest.context_switch_score)} />
+                <ScoreCard label="Slack Interrupts" score={latest.slack_interrupt_score} description="Volume and distribution of Slack activity" color={getScoreColor(latest.slack_interrupt_score)} />
+                <ScoreCard label="After Hours" score={latest.after_hours_score} description="Activity outside configured work hours" color={getScoreColor(latest.after_hours_score)} />
+              </div>
+
+              {/* 6-week trend chart */}
+              {chartData.length > 1 && (
+                <div className="card p-6">
+                  <h2 className="text-sm font-semibold text-gray-700 mb-4">6-Week Trend</h2>
+                  <ResponsiveContainer width="100%" height={200}>
+                    <LineChart data={chartData} margin={{ top: 5, right: 5, bottom: 5, left: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#F3F4F6" />
+                      <XAxis dataKey="week" tick={{ fontSize: 11, fill: '#9CA3AF' }} />
+                      <YAxis domain={[0, 100]} tick={{ fontSize: 11, fill: '#9CA3AF' }} />
+                      <Tooltip
+                        contentStyle={{ fontSize: 12, borderRadius: 8, border: '1px solid #E5E7EB' }}
+                        formatter={(v: number, name: string) => [v, name === 'risk' ? 'Burnout Risk' : 'Focus Score']}
+                      />
+                      <Line type="monotone" dataKey="risk" stroke="#EF4444" strokeWidth={2} dot={{ r: 4, fill: '#EF4444' }} name="risk" />
+                      <Line type="monotone" dataKey="focus" stroke="#10B981" strokeWidth={2} dot={{ r: 4, fill: '#10B981' }} name="focus" />
+                    </LineChart>
+                  </ResponsiveContainer>
+                  <div className="flex justify-center gap-4 mt-2">
+                    <div className="flex items-center gap-1.5 text-xs text-gray-500">
+                      <div className="w-3 h-0.5 bg-red-400 rounded" /> Burnout Risk
+                    </div>
+                    <div className="flex items-center gap-1.5 text-xs text-gray-500">
+                      <div className="w-3 h-0.5 bg-green-400 rounded" /> Focus Score
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Daily breakdown for last 14 days */}
+              {scores?.recentDaily && scores.recentDaily.length > 0 && (
+                <div className="card p-5">
+                  <h2 className="text-sm font-semibold text-gray-700 mb-4">Last 14 Days — Daily Detail</h2>
+                  <div className="space-y-2">
+                    {scores.recentDaily.slice(0, 7).map((day) => {
+                      const focusPct = Math.min(100, (day.solo_focus_minutes / 480) * 100);
+                      const meetingPct = Math.min(100, (day.total_meeting_minutes / 480) * 100);
+                      return (
+                        <div key={day.date} className="flex items-center gap-3">
+                          <span className="text-xs text-gray-500 w-16 flex-shrink-0">
+                            {format(parseISO(day.date), 'EEE d')}
+                          </span>
+                          <div className="flex-1 h-5 bg-gray-100 rounded-md overflow-hidden flex">
+                            <div className="h-full bg-amber-400 transition-all" style={{ width: `${meetingPct}%` }} title={`${day.total_meeting_minutes}min meetings`} />
+                            <div className="h-full bg-green-400 transition-all" style={{ width: `${focusPct}%` }} title={`${day.solo_focus_minutes}min focus`} />
+                          </div>
+                          <div className="text-xs text-gray-500 w-28 flex-shrink-0 text-right">
+                            {day.meeting_count}mtg · {day.solo_focus_minutes}m focus
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <div className="flex gap-4 mt-3">
+                    <div className="flex items-center gap-1.5 text-xs text-gray-400">
+                      <div className="w-3 h-3 bg-amber-400 rounded-sm" /> Meetings
+                    </div>
+                    <div className="flex items-center gap-1.5 text-xs text-gray-400">
+                      <div className="w-3 h-3 bg-green-400 rounded-sm" /> Focus time
+                    </div>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+
+          {/* Risk flags — shown for both partial and full scores */}
+          {riskFlags.length > 0 && (
+            <div className="space-y-2">
+              <h2 className="text-sm font-semibold text-gray-700">
+                {hasWeeklyScores ? "What's driving your score" : 'Early signals — based on data so far'}
+              </h2>
+              {riskFlags.map((flag: string, i: number) => (
+                <div key={i} className="flex items-start gap-2 p-3 bg-amber-50 rounded-lg border border-amber-100">
+                  <Info className="w-4 h-4 text-amber-500 mt-0.5 flex-shrink-0" />
+                  <span className="text-sm text-amber-800">{flag}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}

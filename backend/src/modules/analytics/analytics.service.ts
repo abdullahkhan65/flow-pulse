@@ -1,0 +1,551 @@
+import { Injectable, Inject, Logger } from '@nestjs/common';
+import { Pool } from 'pg';
+import { DATABASE_POOL } from '../../database/database.module';
+import { startOfWeek, endOfWeek, format, subWeeks } from 'date-fns';
+import { computeMeetingLoadScore } from './engines/meeting-load.engine';
+import { computeContextSwitchScore } from './engines/context-switch.engine';
+import { computeSlackInterruptScore } from './engines/slack-interrupt.engine';
+import { computeFocusScore } from './engines/focus-time.engine';
+import { computeAfterHoursScore } from './engines/after-hours.engine';
+import { computeBurnoutRiskScore } from './engines/burnout-risk.engine';
+import { DailyAggregate, RawActivityLog, WeeklyScoreResult } from './analytics.types';
+import { differenceInMinutes } from 'date-fns';
+
+export interface TodaySnapshot {
+  meetingsToday: number;
+  meetingMinutesToday: number;
+  focusMinutesToday: number;
+  slackMessagesToday: number;
+  afterHoursEventsToday: number;
+  contextSwitchesToday: number;
+  backToBackToday: number;
+}
+
+export interface PartialScoreResult {
+  isPartial: true;
+  daysCollected: number;
+  daysNeededForFull: number;
+  confidence: 'none' | 'low' | 'medium' | 'high';
+  hasEnoughForFullScores: boolean;
+  dataFrom: string | null;
+  lastSyncedAt: string | null;
+  todaySnapshot: TodaySnapshot | null;
+  thisWeekSoFar: {
+    totalMeetings: number;
+    totalMeetingMinutes: number;
+    avgMeetingMinutesPerDay: number;
+    backToBackMeetings: number;
+    afterHoursEvents: number;
+    totalSlackMessages: number;
+    totalFocusMinutes: number;
+    avgFocusMinutesPerDay: number;
+  } | null;
+  partialScores: {
+    meetingLoadScore: number;
+    contextSwitchScore: number;
+    slackInterruptScore: number;
+    focusScore: number;
+    afterHoursScore: number;
+    burnoutRiskScore: number;
+    riskLevel: 'low' | 'moderate' | 'high' | 'critical';
+    riskFlags: string[];
+  } | null;
+}
+
+@Injectable()
+export class AnalyticsService {
+  private readonly logger = new Logger(AnalyticsService.name);
+
+  constructor(@Inject(DATABASE_POOL) private db: Pool) {}
+
+  // ─── Step 1: Build daily aggregates from raw logs ─────────────────────────
+
+  async buildDailyAggregates(userId: string, orgId: string, date: Date): Promise<void> {
+    const dateStr = format(date, 'yyyy-MM-dd');
+
+    const logsResult = await this.db.query<RawActivityLog>(
+      `SELECT * FROM raw_activity_logs
+       WHERE user_id = $1
+         AND occurred_at >= $2::date
+         AND occurred_at < $2::date + INTERVAL '1 day'
+       ORDER BY occurred_at ASC`,
+      [userId, dateStr],
+    );
+
+    const logs = logsResult.rows.map((r) => ({
+      ...r,
+      occurred_at: new Date(r.occurred_at),
+    }));
+
+    const calendarLogs = logs.filter((l) => l.source === 'google_calendar');
+    const slackLogs = logs.filter((l) => l.source === 'slack');
+    const jiraLogs = logs.filter((l) => l.source === 'jira');
+
+    // Calendar metrics
+    const meetings = calendarLogs.filter((l) => l.event_type === 'meeting');
+    const totalMeetingMinutes = Math.round(
+      meetings.reduce((s, m) => s + (m.duration_seconds || 0) / 60, 0),
+    );
+
+    // Back-to-back: meetings with < 10 min gap between them
+    let b2bCount = 0;
+    for (let i = 1; i < meetings.length; i++) {
+      const prevEnd = new Date(
+        meetings[i - 1].occurred_at.getTime() + (meetings[i - 1].duration_seconds || 0) * 1000,
+      );
+      const gap = differenceInMinutes(meetings[i].occurred_at, prevEnd);
+      if (gap >= 0 && gap < 10) b2bCount++;
+    }
+
+    // Focus blocks: gaps ≥30 min between meetings during work hours (8am–6pm)
+    const WORK_START = 9 * 60;
+    const WORK_END = 18 * 60;
+    let soloFocusMinutes = 0;
+
+    if (meetings.length === 0) {
+      soloFocusMinutes = WORK_END - WORK_START;
+    } else {
+      const sortedMeetings = [...meetings].sort(
+        (a, b) => a.occurred_at.getTime() - b.occurred_at.getTime(),
+      );
+      let cursor = WORK_START;
+      for (const m of sortedMeetings) {
+        const mStart = m.occurred_at.getHours() * 60 + m.occurred_at.getMinutes();
+        const mEnd = mStart + Math.round((m.duration_seconds || 0) / 60);
+        if (mStart > cursor) {
+          const gap = Math.min(mStart, WORK_END) - cursor;
+          if (gap >= 30) soloFocusMinutes += gap;
+        }
+        cursor = Math.max(cursor, mEnd);
+      }
+      if (cursor < WORK_END) {
+        const remaining = WORK_END - cursor;
+        if (remaining >= 30) soloFocusMinutes += remaining;
+      }
+    }
+
+    // Slack metrics
+    const slackChannels = new Set(slackLogs.map((l) => l.metadata?.channelId)).size;
+
+    // After-hours and weekend
+    const afterHoursEvents = logs.filter((l) => l.is_after_hours).length;
+    const weekendEvents = logs.filter((l) => l.is_weekend).length;
+
+    // Context switches (within this day)
+    let contextSwitches = 0;
+    const dayLogs = [...logs].sort((a, b) => a.occurred_at.getTime() - b.occurred_at.getTime());
+    for (let i = 1; i < dayLogs.length; i++) {
+      const prev = dayLogs[i - 1];
+      const curr = dayLogs[i];
+      const gap = differenceInMinutes(curr.occurred_at, prev.occurred_at);
+      if (prev.source !== curr.source && gap < 60) {
+        contextSwitches++;
+      }
+    }
+
+    await this.db.query(
+      `INSERT INTO daily_aggregates
+         (organization_id, user_id, date, total_meeting_minutes, meeting_count,
+          back_to_back_meetings, solo_focus_minutes, slack_messages_sent, slack_channels_active,
+          after_hours_events, weekend_events, jira_transitions, context_switches)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+       ON CONFLICT (organization_id, user_id, date) DO UPDATE SET
+         total_meeting_minutes = EXCLUDED.total_meeting_minutes,
+         meeting_count = EXCLUDED.meeting_count,
+         back_to_back_meetings = EXCLUDED.back_to_back_meetings,
+         solo_focus_minutes = EXCLUDED.solo_focus_minutes,
+         slack_messages_sent = EXCLUDED.slack_messages_sent,
+         slack_channels_active = EXCLUDED.slack_channels_active,
+         after_hours_events = EXCLUDED.after_hours_events,
+         weekend_events = EXCLUDED.weekend_events,
+         jira_transitions = EXCLUDED.jira_transitions,
+         context_switches = EXCLUDED.context_switches,
+         updated_at = NOW()`,
+      [
+        orgId, userId, dateStr,
+        totalMeetingMinutes, meetings.length, b2bCount, soloFocusMinutes,
+        slackLogs.length, slackChannels,
+        afterHoursEvents, weekendEvents,
+        jiraLogs.length, contextSwitches,
+      ],
+    );
+  }
+
+  // ─── Step 2: Compute weekly scores from daily aggregates ──────────────────
+
+  async computeWeeklyScores(userId: string, orgId: string, weekStart: Date): Promise<WeeklyScoreResult> {
+    const weekEnd = endOfWeek(weekStart, { weekStartsOn: 1 });
+    const weekStartStr = format(weekStart, 'yyyy-MM-dd');
+    const weekEndStr = format(weekEnd, 'yyyy-MM-dd');
+
+    const [aggregatesResult, logsResult] = await Promise.all([
+      this.db.query<DailyAggregate>(
+        `SELECT * FROM daily_aggregates
+         WHERE user_id = $1 AND date BETWEEN $2 AND $3
+         ORDER BY date ASC`,
+        [userId, weekStartStr, weekEndStr],
+      ),
+      this.db.query<RawActivityLog>(
+        `SELECT * FROM raw_activity_logs
+         WHERE user_id = $1 AND occurred_at BETWEEN $2 AND $3
+         ORDER BY occurred_at ASC`,
+        [userId, weekStart.toISOString(), weekEnd.toISOString()],
+      ),
+    ]);
+
+    const aggregates = aggregatesResult.rows.map((r) => ({
+      ...r,
+      date: new Date(r.date),
+    }));
+
+    const logs = logsResult.rows.map((r) => ({
+      ...r,
+      occurred_at: new Date(r.occurred_at),
+    }));
+
+    // Run all engines
+    const { score: meetingLoadScore, breakdown: mlBreakdown } = computeMeetingLoadScore(aggregates);
+    const { score: contextSwitchScore, breakdown: csBreakdown } = computeContextSwitchScore(logs);
+    const { score: slackInterruptScore, breakdown: siBreakdown } = computeSlackInterruptScore(aggregates);
+    const { score: focusScore, breakdown: ftBreakdown } = computeFocusScore(aggregates);
+    const { score: afterHoursScore, breakdown: ahBreakdown } = computeAfterHoursScore(aggregates);
+
+    // Get previous week score for delta calculation
+    const prevWeekResult = await this.db.query(
+      `SELECT burnout_risk_score FROM weekly_scores
+       WHERE user_id = $1 AND week_start = $2`,
+      [userId, format(subWeeks(weekStart, 1), 'yyyy-MM-dd')],
+    );
+    const previousWeekBurnoutScore = prevWeekResult.rows[0]?.burnout_risk_score;
+
+    const burnoutResult = computeBurnoutRiskScore({
+      meetingLoadScore,
+      contextSwitchScore,
+      slackInterruptScore,
+      focusScore,
+      afterHoursScore,
+      previousWeekBurnoutScore: previousWeekBurnoutScore
+        ? parseFloat(previousWeekBurnoutScore)
+        : undefined,
+    });
+
+    const scoreBreakdown = {
+      meetingLoad: mlBreakdown,
+      contextSwitch: csBreakdown,
+      slackInterrupt: siBreakdown,
+      focusTime: ftBreakdown,
+      afterHours: ahBreakdown,
+      burnout: burnoutResult.weightedComponents,
+      riskFlags: burnoutResult.riskFlags,
+    };
+
+    // Persist scores
+    await this.db.query(
+      `INSERT INTO weekly_scores
+         (organization_id, user_id, week_start, meeting_load_score, context_switch_score,
+          slack_interrupt_score, focus_score, after_hours_score, burnout_risk_score,
+          score_breakdown, burnout_risk_delta)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+       ON CONFLICT (organization_id, user_id, week_start) DO UPDATE SET
+         meeting_load_score = EXCLUDED.meeting_load_score,
+         context_switch_score = EXCLUDED.context_switch_score,
+         slack_interrupt_score = EXCLUDED.slack_interrupt_score,
+         focus_score = EXCLUDED.focus_score,
+         after_hours_score = EXCLUDED.after_hours_score,
+         burnout_risk_score = EXCLUDED.burnout_risk_score,
+         score_breakdown = EXCLUDED.score_breakdown,
+         burnout_risk_delta = EXCLUDED.burnout_risk_delta,
+         updated_at = NOW()`,
+      [
+        orgId, userId, weekStartStr,
+        meetingLoadScore, contextSwitchScore, slackInterruptScore,
+        focusScore, afterHoursScore, burnoutResult.burnoutRiskScore,
+        JSON.stringify(scoreBreakdown), burnoutResult.delta ?? null,
+      ],
+    );
+
+    return {
+      userId,
+      weekStart,
+      meetingLoadScore,
+      contextSwitchScore,
+      slackInterruptScore,
+      focusScore,
+      afterHoursScore,
+      burnoutRiskScore: burnoutResult.burnoutRiskScore,
+      riskLevel: burnoutResult.riskLevel,
+      riskFlags: burnoutResult.riskFlags,
+      breakdown: scoreBreakdown,
+    };
+  }
+
+  // ─── Step 3: Compute team-level aggregate ─────────────────────────────────
+
+  async computeTeamWeeklyScores(orgId: string, weekStart: Date): Promise<void> {
+    const weekStartStr = format(weekStart, 'yyyy-MM-dd');
+    const burnoutThreshold = 70;
+
+    const result = await this.db.query(
+      `SELECT
+         COUNT(*) as total_members,
+         AVG(meeting_load_score) as avg_meeting_load,
+         AVG(context_switch_score) as avg_context_switch,
+         AVG(slack_interrupt_score) as avg_slack_interrupt,
+         AVG(focus_score) as avg_focus,
+         AVG(burnout_risk_score) as avg_burnout_risk,
+         COUNT(*) FILTER (WHERE burnout_risk_score >= $2) as members_at_risk
+       FROM weekly_scores
+       WHERE organization_id = $1 AND week_start = $3`,
+      [orgId, burnoutThreshold, weekStartStr],
+    );
+
+    if (!result.rows[0] || parseInt(result.rows[0].total_members) === 0) return;
+
+    const row = result.rows[0];
+
+    // Generate simple team-level insights
+    const insights = generateTeamInsights(row);
+    const anomalies = await this.detectAnomalies(orgId, weekStart, row);
+
+    await this.db.query(
+      `INSERT INTO team_weekly_scores
+         (organization_id, week_start, avg_meeting_load_score, avg_context_switch_score,
+          avg_slack_interrupt_score, avg_focus_score, avg_burnout_risk_score,
+          members_at_risk, total_members, insights, anomalies)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+       ON CONFLICT (organization_id, week_start) DO UPDATE SET
+         avg_meeting_load_score = EXCLUDED.avg_meeting_load_score,
+         avg_context_switch_score = EXCLUDED.avg_context_switch_score,
+         avg_slack_interrupt_score = EXCLUDED.avg_slack_interrupt_score,
+         avg_focus_score = EXCLUDED.avg_focus_score,
+         avg_burnout_risk_score = EXCLUDED.avg_burnout_risk_score,
+         members_at_risk = EXCLUDED.members_at_risk,
+         total_members = EXCLUDED.total_members,
+         insights = EXCLUDED.insights,
+         anomalies = EXCLUDED.anomalies,
+         updated_at = NOW()`,
+      [
+        orgId, weekStartStr,
+        parseFloat(row.avg_meeting_load) || 0,
+        parseFloat(row.avg_context_switch) || 0,
+        parseFloat(row.avg_slack_interrupt) || 0,
+        parseFloat(row.avg_focus) || 0,
+        parseFloat(row.avg_burnout_risk) || 0,
+        parseInt(row.members_at_risk) || 0,
+        parseInt(row.total_members) || 0,
+        JSON.stringify(insights),
+        JSON.stringify(anomalies),
+      ],
+    );
+  }
+
+  // ─── Step 4: Partial scores for new users (< 7 days of data) ────────────
+
+  async computePartialScores(userId: string, orgId: string): Promise<PartialScoreResult> {
+    const today = new Date();
+    const weekStart = startOfWeek(today, { weekStartsOn: 1 });
+    const todayStr = format(today, 'yyyy-MM-dd');
+    const weekStartStr = format(weekStart, 'yyyy-MM-dd');
+
+    const [aggregatesResult, logsResult, lastSyncResult, firstLogResult] = await Promise.all([
+      this.db.query<DailyAggregate>(
+        `SELECT * FROM daily_aggregates
+         WHERE user_id = $1 AND date BETWEEN $2 AND $3
+         ORDER BY date ASC`,
+        [userId, weekStartStr, todayStr],
+      ),
+      this.db.query<RawActivityLog>(
+        `SELECT * FROM raw_activity_logs
+         WHERE user_id = $1 AND occurred_at >= $2
+         ORDER BY occurred_at ASC`,
+        [userId, weekStart.toISOString()],
+      ),
+      this.db.query(
+        `SELECT MAX(last_synced_at) as last_synced
+         FROM integrations WHERE user_id = $1`,
+        [userId],
+      ),
+      this.db.query(
+        `SELECT MIN(occurred_at) as first_log FROM raw_activity_logs WHERE user_id = $1`,
+        [userId],
+      ),
+    ]);
+
+    const aggregates = aggregatesResult.rows.map((r) => ({ ...r, date: new Date(r.date) }));
+    const logs = logsResult.rows.map((r) => ({ ...r, occurred_at: new Date(r.occurred_at) }));
+    const lastSyncedAt = lastSyncResult.rows[0]?.last_synced ?? null;
+    const dataFrom = firstLogResult.rows[0]?.first_log
+      ? format(new Date(firstLogResult.rows[0].first_log), 'yyyy-MM-dd')
+      : null;
+
+    const daysCollected = aggregates.length;
+    const DAYS_NEEDED = 7;
+    const confidence: PartialScoreResult['confidence'] =
+      daysCollected === 0 ? 'none' :
+      daysCollected <= 2 ? 'low' :
+      daysCollected <= 4 ? 'medium' : 'high';
+
+    const todaySnapshot = await this.getTodaySnapshot(userId, todayStr);
+
+    if (daysCollected === 0) {
+      return {
+        isPartial: true,
+        daysCollected: 0,
+        daysNeededForFull: DAYS_NEEDED,
+        confidence: 'none',
+        hasEnoughForFullScores: false,
+        dataFrom,
+        lastSyncedAt,
+        todaySnapshot,
+        thisWeekSoFar: null,
+        partialScores: null,
+      };
+    }
+
+    const { score: meetingLoadScore } = computeMeetingLoadScore(aggregates);
+    const { score: contextSwitchScore } = computeContextSwitchScore(logs);
+    const { score: slackInterruptScore } = computeSlackInterruptScore(aggregates);
+    const { score: focusScore } = computeFocusScore(aggregates);
+    const { score: afterHoursScore } = computeAfterHoursScore(aggregates);
+    const burnoutResult = computeBurnoutRiskScore({
+      meetingLoadScore, contextSwitchScore, slackInterruptScore, focusScore, afterHoursScore,
+    });
+
+    const totalMeetings = aggregates.reduce((s, d) => s + d.meeting_count, 0);
+    const totalMeetingMinutes = aggregates.reduce((s, d) => s + d.total_meeting_minutes, 0);
+    const totalFocusMinutes = aggregates.reduce((s, d) => s + (d.solo_focus_minutes || 0), 0);
+
+    return {
+      isPartial: true,
+      daysCollected,
+      daysNeededForFull: DAYS_NEEDED,
+      confidence,
+      hasEnoughForFullScores: daysCollected >= DAYS_NEEDED,
+      dataFrom,
+      lastSyncedAt,
+      todaySnapshot,
+      thisWeekSoFar: {
+        totalMeetings,
+        totalMeetingMinutes,
+        avgMeetingMinutesPerDay: daysCollected ? Math.round(totalMeetingMinutes / daysCollected) : 0,
+        backToBackMeetings: aggregates.reduce((s, d) => s + (d.back_to_back_meetings || 0), 0),
+        afterHoursEvents: aggregates.reduce((s, d) => s + d.after_hours_events, 0),
+        totalSlackMessages: aggregates.reduce((s, d) => s + d.slack_messages_sent, 0),
+        totalFocusMinutes,
+        avgFocusMinutesPerDay: daysCollected ? Math.round(totalFocusMinutes / daysCollected) : 0,
+      },
+      partialScores: {
+        meetingLoadScore,
+        contextSwitchScore,
+        slackInterruptScore,
+        focusScore,
+        afterHoursScore,
+        burnoutRiskScore: burnoutResult.burnoutRiskScore,
+        riskLevel: burnoutResult.riskLevel,
+        riskFlags: burnoutResult.riskFlags,
+      },
+    };
+  }
+
+  private async getTodaySnapshot(userId: string, todayStr: string): Promise<TodaySnapshot | null> {
+    const result = await this.db.query(
+      `SELECT * FROM daily_aggregates WHERE user_id = $1 AND date = $2`,
+      [userId, todayStr],
+    );
+    if (!result.rows[0]) return null;
+    const r = result.rows[0];
+    return {
+      meetingsToday: r.meeting_count || 0,
+      meetingMinutesToday: r.total_meeting_minutes || 0,
+      focusMinutesToday: r.solo_focus_minutes || 0,
+      slackMessagesToday: r.slack_messages_sent || 0,
+      afterHoursEventsToday: r.after_hours_events || 0,
+      contextSwitchesToday: r.context_switches || 0,
+      backToBackToday: r.back_to_back_meetings || 0,
+    };
+  }
+
+  private async detectAnomalies(orgId: string, weekStart: Date, currentWeek: any): Promise<any[]> {
+    const prevWeekResult = await this.db.query(
+      `SELECT * FROM team_weekly_scores
+       WHERE organization_id = $1 AND week_start = $2`,
+      [orgId, format(subWeeks(weekStart, 1), 'yyyy-MM-dd')],
+    );
+
+    if (!prevWeekResult.rows[0]) return [];
+
+    const prev = prevWeekResult.rows[0];
+    const anomalies: any[] = [];
+
+    const burnoutDelta = parseFloat(currentWeek.avg_burnout_risk) - parseFloat(prev.avg_burnout_risk_score);
+    if (burnoutDelta > 10) {
+      anomalies.push({
+        type: 'burnout_spike',
+        severity: burnoutDelta > 20 ? 'critical' : 'warning',
+        message: `Team burnout risk increased by ${Math.round(burnoutDelta)} points this week`,
+        delta: burnoutDelta,
+      });
+    }
+
+    const focusDelta = parseFloat(currentWeek.avg_focus) - parseFloat(prev.avg_focus_score);
+    if (focusDelta < -15) {
+      anomalies.push({
+        type: 'focus_drop',
+        severity: 'warning',
+        message: `Team focus time dropped significantly this week`,
+        delta: focusDelta,
+      });
+    }
+
+    const meetingDelta = parseFloat(currentWeek.avg_meeting_load) - parseFloat(prev.avg_meeting_load_score);
+    if (meetingDelta > 15) {
+      anomalies.push({
+        type: 'meeting_spike',
+        severity: 'warning',
+        message: `Meeting load increased sharply — consider reviewing recurring meetings`,
+        delta: meetingDelta,
+      });
+    }
+
+    return anomalies;
+  }
+}
+
+function generateTeamInsights(weekData: any): any[] {
+  const insights: any[] = [];
+  const burnoutRisk = parseFloat(weekData.avg_burnout_risk);
+  const meetingLoad = parseFloat(weekData.avg_meeting_load);
+  const focusScore = parseFloat(weekData.avg_focus);
+  const afterHours = parseFloat(weekData.avg_slack_interrupt);
+  const membersAtRisk = parseInt(weekData.members_at_risk);
+  const totalMembers = parseInt(weekData.total_members);
+
+  if (membersAtRisk > 0) {
+    insights.push({
+      type: 'members_at_risk',
+      priority: 'high',
+      text: `${membersAtRisk} of ${totalMembers} team members show elevated burnout risk signals`,
+      recommendation: 'Consider 1:1 check-ins to understand workload distribution',
+    });
+  }
+
+  if (meetingLoad > 65) {
+    insights.push({
+      type: 'meeting_overload',
+      priority: 'medium',
+      text: `Team average meeting load is high (${Math.round(meetingLoad)}/100)`,
+      recommendation: 'Audit recurring meetings. Aim for meeting-free blocks of 2+ hours daily',
+    });
+  }
+
+  if (focusScore < 40) {
+    insights.push({
+      type: 'low_focus_time',
+      priority: 'medium',
+      text: `Team has insufficient deep work time this week`,
+      recommendation: 'Protect morning blocks (9am–12pm) as focus time across the team',
+    });
+  }
+
+  return insights;
+}
