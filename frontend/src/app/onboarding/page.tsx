@@ -1,25 +1,18 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { api } from '@/lib/api';
 import clsx from 'clsx';
-import { CheckCircle } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { CheckCircle, Sparkles } from 'lucide-react';
+import { api } from '@/lib/api';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api/v1';
-
-const steps = [
-  { id: 'welcome', label: 'Welcome' },
-  { id: 'privacy', label: 'Privacy' },
-  { id: 'integrations', label: 'Integrations' },
-  { id: 'done', label: 'Done' },
-];
+const steps = ['Welcome', 'Privacy', 'Integrations', 'Sync'];
 
 const syncPhases = [
-  'Connecting to Google Calendar…',
-  'Pulling last 7 days of events…',
-  'Building your activity baseline…',
-  'Computing initial scores…',
+  'Connecting to Google Calendar...',
+  'Reading last 7 days of activity...',
+  'Building your baseline...',
+  'Computing first scores...',
 ];
 
 function SyncProgress({ onDone }: { onDone: () => void }) {
@@ -27,59 +20,39 @@ function SyncProgress({ onDone }: { onDone: () => void }) {
 
   useEffect(() => {
     let p = 0;
-    // Cycle through phase labels every 1.2s for UX feedback
     const interval = setInterval(() => {
       p += 1;
-      if (p < syncPhases.length) {
-        setPhase(p);
-      } else {
-        clearInterval(interval);
-      }
-    }, 1200);
+      if (p < syncPhases.length) setPhase(p);
+      else clearInterval(interval);
+    }, 1100);
 
-    api.syncNow()
+    api
+      .syncNow()
       .then(() => {
         clearInterval(interval);
         setPhase(syncPhases.length - 1);
-        setTimeout(onDone, 600);
+        setTimeout(onDone, 500);
       })
       .catch(() => {
         clearInterval(interval);
-        // Still proceed — user can refresh from the dashboard
-        setTimeout(onDone, 600);
+        setTimeout(onDone, 500);
       });
 
     return () => clearInterval(interval);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [onDone]);
 
   const pct = Math.round(((phase + 1) / syncPhases.length) * 100);
 
   return (
-    <div className="text-center py-4">
-      <div className="w-16 h-16 mx-auto mb-6 relative">
-        <div className="absolute inset-0 rounded-full border-4 border-brand-100" />
-        <div
-          className="absolute inset-0 rounded-full border-4 border-brand-500 border-t-transparent animate-spin"
-          style={{ animationDuration: '1s' }}
-        />
-        <div className="absolute inset-0 flex items-center justify-center">
-          <span className="text-xs font-bold text-brand-600">{pct}%</span>
-        </div>
+    <div className="text-center">
+      <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full border border-cyan-200 bg-cyan-50 text-sm font-semibold text-cyan-900">
+        {pct}%
       </div>
-
-      <h2 className="text-xl font-bold text-gray-900 mb-2">Syncing your data…</h2>
-      <p className="text-sm text-gray-500 mb-8 h-5 transition-all duration-300">
-        {syncPhases[phase]}
-      </p>
-
-      <div className="w-full bg-gray-100 rounded-full h-1.5 mb-2">
-        <div
-          className="bg-brand-500 h-1.5 rounded-full transition-all duration-500"
-          style={{ width: `${pct}%` }}
-        />
+      <h2 className="text-2xl font-semibold [font-family:var(--font-heading)]">Syncing your workspace</h2>
+      <p className="mt-2 text-sm text-slate-600">{syncPhases[phase]}</p>
+      <div className="mx-auto mt-6 h-2 w-full max-w-xs overflow-hidden rounded-full bg-slate-200">
+        <div className="h-full rounded-full bg-gradient-to-r from-teal-700 to-cyan-500 transition-all duration-500" style={{ width: `${pct}%` }} />
       </div>
-      <p className="text-xs text-gray-400">This takes about 10 seconds</p>
     </div>
   );
 }
@@ -87,7 +60,7 @@ function SyncProgress({ onDone }: { onDone: () => void }) {
 export default function OnboardingPage() {
   const [step, setStep] = useState(0);
   const [connecting, setConnecting] = useState<string | null>(null);
-  const [connected, setConnected] = useState<string[]>(['google_calendar']); // Google was connected on login
+  const [connected] = useState<string[]>(['google_calendar']);
   const [syncing, setSyncing] = useState(false);
   const [syncDone, setSyncDone] = useState(false);
   const router = useRouter();
@@ -107,172 +80,119 @@ export default function OnboardingPage() {
     }
   };
 
-  const goToDone = () => {
+  const goToSync = () => {
     setStep(3);
     setSyncing(true);
     setSyncDone(false);
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center px-4">
-      <div className="w-full max-w-lg">
-        {/* Logo */}
-        <div className="flex items-center gap-2 justify-center mb-8">
-          <div className="w-8 h-8 bg-brand-500 rounded-lg flex items-center justify-center">
-            <span className="text-white font-bold text-sm">FP</span>
+    <div className="mx-auto flex min-h-screen w-full max-w-5xl items-center px-5 py-10 md:px-8">
+      <div className="w-full reveal-up">
+        <div className="mb-5 flex items-center justify-between">
+          <div className="inline-flex items-center gap-2 rounded-full border border-teal-200 bg-teal-50 px-3 py-1 text-xs font-semibold text-teal-800">
+            <Sparkles className="h-3.5 w-3.5" />
+            Guided setup
           </div>
-          <span className="font-bold text-gray-900">FlowPulse</span>
+          <p className="text-xs text-slate-500">Step {step + 1} of {steps.length}</p>
         </div>
 
-        {/* Progress */}
-        <div className="flex items-center gap-2 mb-8">
-          {steps.map((s, i) => (
-            <div key={s.id} className="flex-1 flex items-center gap-2">
-              <div className={clsx(
-                'flex-1 h-1 rounded-full transition-all duration-500',
-                i < step ? 'bg-brand-500' : i === step ? 'bg-brand-200' : 'bg-gray-200',
-              )} />
-            </div>
+        <div className="mb-7 grid grid-cols-4 gap-2">
+          {steps.map((label, i) => (
+            <div key={label} className={clsx('h-1.5 rounded-full transition-all', i <= step ? 'bg-teal-700' : 'bg-slate-200')} />
           ))}
         </div>
 
-        {/* Card */}
-        <div className="card p-8">
-          {/* Step 0: Welcome */}
+        <div className="card p-6 md:p-8">
           {step === 0 && (
-            <div className="text-center">
-              <div className="text-5xl mb-6">👋</div>
-              <h1 className="text-2xl font-bold text-gray-900 mb-3">Welcome to FlowPulse</h1>
-              <p className="text-gray-600 leading-relaxed mb-8">
-                Let's set up team health monitoring for your organization. It takes about 3 minutes.
-                We'll connect your tools and explain exactly what data we collect.
+            <div>
+              <h1 className="text-3xl font-semibold [font-family:var(--font-heading)] md:text-4xl">Welcome to FlowPulse</h1>
+              <p className="mt-3 max-w-2xl text-sm leading-relaxed text-slate-600 md:text-base">
+                This setup links your tools and establishes your first baseline in a few minutes. You can always adjust data controls later.
               </p>
-              <button onClick={() => setStep(1)} className="btn-primary w-full justify-center py-3">
-                Let's get started →
-              </button>
+              <div className="mt-8 flex justify-end">
+                <button onClick={() => setStep(1)} className="btn-primary px-5 py-2.5">Continue</button>
+              </div>
             </div>
           )}
 
-          {/* Step 1: Privacy commitment */}
           {step === 1 && (
             <div>
-              <h2 className="text-xl font-bold text-gray-900 mb-2">Our privacy commitment</h2>
-              <p className="text-gray-600 text-sm mb-6">
-                Before we connect anything, here's exactly what FlowPulse will and won't collect.
-              </p>
-
-              <div className="space-y-3 mb-8">
+              <h2 className="text-2xl font-semibold [font-family:var(--font-heading)]">Privacy commitment</h2>
+              <p className="mt-2 text-sm text-slate-600">FlowPulse is intentionally designed for insight without surveillance.</p>
+              <div className="mt-6 grid gap-3 md:grid-cols-2">
                 {[
-                  { icon: '✅', text: 'Meeting counts, durations, participant counts' },
-                  { icon: '✅', text: 'Slack message timestamps (no content)' },
-                  { icon: '✅', text: 'Jira transition timestamps (no ticket content)' },
-                  { icon: '❌', text: 'Meeting titles or attendee names — never' },
-                  { icon: '❌', text: 'Message content of any kind — never' },
-                  { icon: '❌', text: 'Individual performance ranking — never' },
-                ].map((item, i) => (
-                  <div key={i} className="flex items-center gap-3 text-sm">
-                    <span className="text-lg w-6 flex-shrink-0">{item.icon}</span>
-                    <span className="text-gray-700">{item.text}</span>
-                  </div>
+                  'We use timestamps, durations, and counts',
+                  'No message content is ever read or stored',
+                  'No meeting titles or attendee names are stored',
+                  'No individual ranking leaderboard is generated',
+                ].map((item) => (
+                  <div key={item} className="rounded-xl border border-slate-200 bg-white/80 p-3 text-sm text-slate-700">{item}</div>
                 ))}
               </div>
-
-              <div className="flex gap-3">
-                <button onClick={() => setStep(0)} className="btn-secondary flex-1 justify-center">← Back</button>
-                <button onClick={() => setStep(2)} className="btn-primary flex-1 justify-center">
-                  I understand, continue →
-                </button>
+              <div className="mt-8 flex gap-3">
+                <button onClick={() => setStep(0)} className="btn-secondary flex-1">Back</button>
+                <button onClick={() => setStep(2)} className="btn-primary flex-1">I understand</button>
               </div>
             </div>
           )}
 
-          {/* Step 2: Integrations */}
           {step === 2 && (
             <div>
-              <h2 className="text-xl font-bold text-gray-900 mb-2">Connect your tools</h2>
-              <p className="text-gray-600 text-sm mb-6">
-                Google Calendar was connected during sign-in. Connect Slack and Jira for fuller insights.
-              </p>
+              <h2 className="text-2xl font-semibold [font-family:var(--font-heading)]">Connect integrations</h2>
+              <p className="mt-2 text-sm text-slate-600">Calendar is already connected from sign-in. Add Slack and Jira for fuller signal quality.</p>
 
-              <div className="space-y-3 mb-8">
+              <div className="mt-6 space-y-3">
                 {[
-                  {
-                    type: 'google_calendar',
-                    icon: '📅',
-                    label: 'Google Calendar',
-                    desc: 'Meeting load, back-to-back meetings, focus time',
-                    required: true,
-                  },
-                  {
-                    type: 'slack',
-                    icon: '💬',
-                    label: 'Slack',
-                    desc: 'Interruption patterns, after-hours messaging',
-                    required: false,
-                  },
-                  {
-                    type: 'jira',
-                    icon: '🎯',
-                    label: 'Jira',
-                    desc: 'Context switching, work distribution patterns',
-                    required: false,
-                  },
-                ].map((int) => (
-                  <div key={int.type} className="flex items-center gap-4 p-4 border border-gray-100 rounded-xl">
-                    <span className="text-2xl">{int.icon}</span>
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium text-sm">{int.label}</span>
-                        {int.required && <span className="badge bg-gray-100 text-gray-600">Required</span>}
-                        {connected.includes(int.type) && <CheckCircle className="w-4 h-4 text-green-500" />}
+                  { type: 'google_calendar', label: 'Google Calendar', detail: 'Meeting load and focus windows', required: true },
+                  { type: 'slack', label: 'Slack', detail: 'Interruption and after-hours patterns', required: false },
+                  { type: 'jira', label: 'Jira', detail: 'Context-switch and workflow friction', required: false },
+                ].map((it) => {
+                  const isConnected = connected.includes(it.type);
+                  return (
+                    <div key={it.type} className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white/80 p-4">
+                      <div className="h-10 w-10 rounded-lg bg-slate-100" />
+                      <div className="flex-1">
+                        <p className="text-sm font-semibold text-slate-900">{it.label} {it.required && <span className="ml-1 rounded-full bg-slate-100 px-2 py-0.5 text-[10px]">Required</span>}</p>
+                        <p className="text-xs text-slate-500">{it.detail}</p>
                       </div>
-                      <div className="text-xs text-gray-500 mt-0.5">{int.desc}</div>
+                      {isConnected ? (
+                        <span className="text-xs font-semibold text-emerald-700">Connected</span>
+                      ) : (
+                        <button
+                          onClick={() => handleConnect(it.type)}
+                          disabled={connecting === it.type}
+                          className="btn-primary px-3 py-2 text-xs"
+                        >
+                          {connecting === it.type ? 'Connecting...' : 'Connect'}
+                        </button>
+                      )}
                     </div>
-                    {connected.includes(int.type) ? (
-                      <span className="text-xs text-green-600 font-medium">Connected</span>
-                    ) : (
-                      <button
-                        onClick={() => handleConnect(int.type)}
-                        disabled={connecting === int.type}
-                        className="btn-primary text-xs"
-                      >
-                        {connecting === int.type ? 'Connecting...' : 'Connect'}
-                      </button>
-                    )}
-                  </div>
-                ))}
+                  );
+                })}
               </div>
 
-              <div className="flex gap-3">
-                <button onClick={() => setStep(1)} className="btn-secondary flex-1 justify-center">← Back</button>
-                <button onClick={goToDone} className="btn-primary flex-1 justify-center">
-                  Continue →
-                </button>
+              <div className="mt-8 flex gap-3">
+                <button onClick={() => setStep(1)} className="btn-secondary flex-1">Back</button>
+                <button onClick={goToSync} className="btn-primary flex-1">Continue</button>
               </div>
             </div>
           )}
 
-          {/* Step 3: Done — sync in progress or complete */}
           {step === 3 && syncing && !syncDone && (
             <SyncProgress onDone={() => { setSyncing(false); setSyncDone(true); }} />
           )}
 
           {step === 3 && syncDone && (
             <div className="text-center">
-              <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                <CheckCircle className="w-8 h-8 text-green-600" />
+              <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
+                <CheckCircle className="h-8 w-8" />
               </div>
-              <h2 className="text-2xl font-bold text-gray-900 mb-3">Your data is ready!</h2>
-              <p className="text-gray-600 mb-2">
-                We've pulled your last 7 days of calendar data and computed your initial scores.
-                You'll see real metrics on your dashboard right now — no waiting.
+              <h2 className="text-3xl font-semibold [font-family:var(--font-heading)]">You are ready</h2>
+              <p className="mx-auto mt-3 max-w-xl text-sm text-slate-600 md:text-base">
+                Initial data is synced and your first dashboard is prepared. More confidence builds as additional days are collected.
               </p>
-              <p className="text-gray-500 text-sm mb-8">
-                Scores update every 4 hours. Invite your team from Settings.
-              </p>
-              <button onClick={() => router.push('/dashboard')} className="btn-primary w-full justify-center py-3">
-                Go to Dashboard →
-              </button>
+              <button onClick={() => router.push('/dashboard')} className="btn-primary mt-7 w-full py-3">Open dashboard</button>
             </div>
           )}
         </div>

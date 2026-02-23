@@ -10,14 +10,14 @@ import Link from 'next/link';
 function ScoreBar({ score, label, color }: { score: number; label: string; color: string }) {
   return (
     <div className="flex items-center gap-2">
-      <span className="text-xs text-gray-500 w-20 flex-shrink-0">{label}</span>
-      <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+      <span className="text-xs text-slate-500 w-20 flex-shrink-0">{label}</span>
+      <div className="flex-1 h-1.5 bg-slate-200 rounded-full overflow-hidden">
         <div
           className="h-full rounded-full transition-all duration-500"
           style={{ width: `${score}%`, backgroundColor: color }}
         />
       </div>
-      <span className="text-xs text-gray-700 w-8 text-right">{Math.round(score)}</span>
+      <span className="text-xs text-slate-700 w-8 text-right">{Math.round(score)}</span>
     </div>
   );
 }
@@ -73,29 +73,29 @@ export default function TeamMembersPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="space-y-5 reveal-up">
+      <div className="flex items-center justify-between rounded-2xl border border-slate-200/80 bg-white/70 p-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Team Members</h1>
-          <p className="text-gray-600 text-sm mt-1">
+          <h1 className="text-2xl font-semibold text-slate-900 [font-family:var(--font-heading)]">Team Members</h1>
+          <p className="text-slate-600 text-sm mt-1">
             Last week's health signals — <strong>not</strong> a performance ranking
           </p>
         </div>
 
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
           <input
             type="text"
             placeholder="Search members..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="pl-9 pr-4 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-brand-400 w-56"
+            className="w-56 rounded-xl border border-slate-200 bg-white/80 pl-9 pr-4 py-2 text-sm text-slate-700 focus:outline-none focus:border-teal-600"
           />
         </div>
       </div>
 
       {/* Privacy reminder */}
-      <div className="flex items-start gap-2 p-3 bg-blue-50 rounded-lg border border-blue-100">
+      <div className="flex items-start gap-2 rounded-xl border border-cyan-200 bg-cyan-50 p-3">
         <AlertTriangle className="w-4 h-4 text-blue-500 mt-0.5 flex-shrink-0" />
         <p className="text-xs text-blue-700">
           These scores reflect team health signals, not individual performance. Use them to start
@@ -106,18 +106,18 @@ export default function TeamMembersPage() {
       <div className="card overflow-hidden">
         <table className="w-full">
           <thead>
-            <tr className="border-b border-gray-100 bg-gray-50">
-              <th className="text-left text-xs font-medium text-gray-500 px-6 py-3 uppercase tracking-wide">Member</th>
-              <th className="text-left text-xs font-medium text-gray-500 px-4 py-3 uppercase tracking-wide">Risk Level</th>
-              <th className="text-left text-xs font-medium text-gray-500 px-4 py-3 uppercase tracking-wide w-48">Signals</th>
-              <th className="text-left text-xs font-medium text-gray-500 px-4 py-3 uppercase tracking-wide">Trend</th>
-              <th className="text-left text-xs font-medium text-gray-500 px-4 py-3 uppercase tracking-wide">Integrations</th>
+            <tr className="border-b border-slate-200 bg-slate-50/80">
+              <th className="text-left text-xs font-medium text-slate-500 px-6 py-3 uppercase tracking-wide">Member</th>
+              <th className="text-left text-xs font-medium text-slate-500 px-4 py-3 uppercase tracking-wide">Risk Level</th>
+              <th className="text-left text-xs font-medium text-slate-500 px-4 py-3 uppercase tracking-wide w-48">Signals</th>
+              <th className="text-left text-xs font-medium text-slate-500 px-4 py-3 uppercase tracking-wide">Trend</th>
+              <th className="text-left text-xs font-medium text-slate-500 px-4 py-3 uppercase tracking-wide">Integrations</th>
               <th className="px-4 py-3" />
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-50">
+          <tbody className="divide-y divide-slate-100">
             {filtered.map((member) => (
-              <tr key={member.id} className="hover:bg-gray-50 transition-colors">
+              <tr key={member.id} className="hover:bg-slate-50/90 transition-colors">
                 <td className="px-6 py-4">
                   <div className="flex items-center gap-3">
                     {member.avatar_url ? (
@@ -128,8 +128,8 @@ export default function TeamMembersPage() {
                       </div>
                     )}
                     <div>
-                      <div className="text-sm font-medium text-gray-900">{member.name || '—'}</div>
-                      <div className="text-xs text-gray-500">{member.email}</div>
+                      <div className="text-sm font-medium text-slate-900">{member.name || '—'}</div>
+                      <div className="text-xs text-slate-500">{member.email}</div>
                     </div>
                   </div>
                 </td>
@@ -137,7 +137,7 @@ export default function TeamMembersPage() {
                 <td className="px-4 py-4">
                   <RiskChip score={member.burnout_risk_score} />
                   {member.burnout_risk_score > 0 && (
-                    <div className="text-xs text-gray-400 mt-1">{Math.round(member.burnout_risk_score)}/100</div>
+                    <div className="text-xs text-slate-400 mt-1">{Math.round(member.burnout_risk_score)}/100</div>
                   )}
                 </td>
 
@@ -149,7 +149,7 @@ export default function TeamMembersPage() {
                       <ScoreBar score={member.after_hours_score} label="After hrs" color="#8B5CF6" />
                     </div>
                   ) : (
-                    <span className="text-xs text-gray-400">No data yet</span>
+                    <span className="text-xs text-slate-400">No data yet</span>
                   )}
                 </td>
 
@@ -159,7 +159,7 @@ export default function TeamMembersPage() {
                       {member.burnout_risk_delta > 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
                       {Math.abs(Math.round(member.burnout_risk_delta))}pts
                     </div>
-                  ) : <span className="text-xs text-gray-400">—</span>}
+                  ) : <span className="text-xs text-slate-400">—</span>}
                 </td>
 
                 <td className="px-4 py-4">
@@ -167,7 +167,7 @@ export default function TeamMembersPage() {
                 </td>
 
                 <td className="px-4 py-4 text-right">
-                  <Link href={`/dashboard/members/${member.id}`} className="text-brand-500 hover:text-brand-700">
+                  <Link href={`/dashboard/members/${member.id}`} className="text-teal-700 hover:text-teal-800">
                     <ChevronRight className="w-4 h-4" />
                   </Link>
                 </td>
@@ -176,7 +176,7 @@ export default function TeamMembersPage() {
 
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={6} className="text-center py-12 text-gray-500 text-sm">
+                <td colSpan={6} className="text-center py-12 text-slate-500 text-sm">
                   {search ? 'No members found' : 'No members in your team yet'}
                 </td>
               </tr>

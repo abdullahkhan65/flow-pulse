@@ -4,14 +4,14 @@ import { useEffect, useState, useCallback } from 'react';
 import useSWR from 'swr';
 import { api, MemberScores, WeeklyScore, PreviewData, TodaySnapshot } from '@/lib/api';
 import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
-  ResponsiveContainer, Cell, LineChart, Line,
+  XAxis, YAxis, CartesianGrid, Tooltip,
+  ResponsiveContainer, LineChart, Line,
 } from 'recharts';
 import { format, parseISO } from 'date-fns';
 import clsx from 'clsx';
 import {
   RefreshCw, Info, Clock, Calendar, MessageSquare, Zap,
-  Moon, AlertTriangle, CheckCircle, TrendingUp, TrendingDown,
+  Moon, AlertTriangle,
 } from 'lucide-react';
 
 // ─── Sub-components ──────────────────────────────────────────────────────────
@@ -34,7 +34,7 @@ function ConfidenceBadge({ confidence, days, needed }: {
     high:   'Good confidence',
   };
   return (
-    <span className={clsx('inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium', styles[confidence])}>
+    <span className={clsx('inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium', styles[confidence])}>
       <span className="w-1.5 h-1.5 rounded-full bg-current" />
       {labels[confidence]} · {days}/{needed} days
     </span>
@@ -50,7 +50,7 @@ function DataFreshnessChip({ lastSyncedAt }: { lastSyncedAt: string | null }) {
                 `${Math.floor(diffMins / 60)}h ago`;
 
   return (
-    <span className="text-xs text-gray-400 flex items-center gap-1">
+    <span className="flex items-center gap-1 text-xs text-slate-400">
       <Clock className="w-3 h-3" /> {label}
     </span>
   );
@@ -99,19 +99,19 @@ function TodayCard({ snapshot }: { snapshot: TodaySnapshot }) {
   return (
     <div className="card p-5">
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-sm font-semibold text-gray-700">Today's Snapshot</h2>
-        <span className="text-xs text-gray-400">{format(new Date(), 'EEEE, MMM d')}</span>
+        <h2 className="text-sm font-semibold text-slate-700">Today's Snapshot</h2>
+        <span className="text-xs text-slate-400">{format(new Date(), 'EEEE, MMM d')}</span>
       </div>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {stats.map((s) => (
-          <div key={s.label} className={clsx('rounded-xl p-4', s.bg)}>
+          <div key={s.label} className={clsx('rounded-xl border border-white/60 p-4', s.bg)}>
             <div className="flex items-center justify-between mb-2">
               <s.icon className={clsx('w-4 h-4', s.color)} />
               {s.alert && <AlertTriangle className="w-3.5 h-3.5 text-amber-500" />}
             </div>
-            <div className={clsx('text-2xl font-bold', s.color)}>{s.value}</div>
-            <div className="text-xs text-gray-600 mt-0.5 font-medium">{s.label}</div>
-            <div className="text-xs text-gray-400 mt-0.5">{s.sub}</div>
+            <div className={clsx('text-2xl font-semibold [font-family:var(--font-heading)]', s.color)}>{s.value}</div>
+            <div className="text-xs text-slate-600 mt-0.5 font-medium">{s.label}</div>
+            <div className="text-xs text-slate-400 mt-0.5">{s.sub}</div>
           </div>
         ))}
       </div>
@@ -124,11 +124,11 @@ function WeekSoFarCard({ data, daysCollected }: {
   daysCollected: number;
 }) {
   return (
-    <div className="card p-5 border-l-4 border-brand-400">
+    <div className="card border-l-4 border-teal-600 p-5">
       <div className="flex items-center justify-between mb-4">
         <div>
-          <h2 className="text-sm font-semibold text-gray-700">This Week So Far</h2>
-          <p className="text-xs text-gray-400 mt-0.5">Based on {daysCollected} day{daysCollected !== 1 ? 's' : ''} of data</p>
+          <h2 className="text-sm font-semibold text-slate-700">This Week So Far</h2>
+          <p className="text-xs text-slate-400 mt-0.5">Based on {daysCollected} day{daysCollected !== 1 ? 's' : ''} of data</p>
         </div>
       </div>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -139,9 +139,9 @@ function WeekSoFarCard({ data, daysCollected }: {
           { label: 'After-hours', value: data.afterHoursEvents, sub: data.totalSlackMessages > 0 ? `${data.totalSlackMessages} Slack msgs` : 'events' },
         ].map((item) => (
           <div key={item.label}>
-            <div className="text-lg font-bold text-gray-900">{item.value}</div>
-            <div className="text-xs font-medium text-gray-600">{item.label}</div>
-            <div className="text-xs text-gray-400">{item.sub}</div>
+            <div className="text-lg font-semibold text-slate-900 [font-family:var(--font-heading)]">{item.value}</div>
+            <div className="text-xs font-medium text-slate-600">{item.label}</div>
+            <div className="text-xs text-slate-400">{item.sub}</div>
           </div>
         ))}
       </div>
@@ -149,29 +149,28 @@ function WeekSoFarCard({ data, daysCollected }: {
   );
 }
 
-function PartialScoreCard({ label, score, description, color, isInverted = false }: {
+function PartialScoreCard({ label, score, description, color }: {
   label: string;
   score: number;
   description: string;
   color: string;
-  isInverted?: boolean;
 }) {
   const displayScore = Math.round(score);
   return (
     <div className="card p-4">
       <div className="flex items-start justify-between mb-2">
-        <span className="text-sm text-gray-600 leading-tight">{label}</span>
-        <span className="text-lg font-bold ml-2 flex-shrink-0" style={{ color }}>
+        <span className="text-sm text-slate-600 leading-tight">{label}</span>
+        <span className="ml-2 flex-shrink-0 text-lg font-semibold [font-family:var(--font-heading)]" style={{ color }}>
           {displayScore}
         </span>
       </div>
-      <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden mb-2">
+      <div className="mb-2 h-1.5 overflow-hidden rounded-full bg-slate-200">
         <div
           className="h-full rounded-full transition-all duration-700"
           style={{ width: `${score}%`, backgroundColor: color }}
         />
       </div>
-      <p className="text-xs text-gray-400 leading-relaxed">{description}</p>
+      <p className="text-xs text-slate-400 leading-relaxed">{description}</p>
     </div>
   );
 }
@@ -199,7 +198,7 @@ function SyncingState({ onDone }: { onDone: (data: PreviewData) => void }) {
   }, []);
 
   return (
-    <div className="card p-12 flex flex-col items-center text-center">
+    <div className="card flex flex-col items-center p-12 text-center">
       <div className="relative w-16 h-16 mb-6">
         <div className="w-16 h-16 border-4 border-brand-100 rounded-full" />
         <div className="absolute inset-0 w-16 h-16 border-4 border-brand-500 border-t-transparent rounded-full animate-spin" />
@@ -207,15 +206,15 @@ function SyncingState({ onDone }: { onDone: (data: PreviewData) => void }) {
           <Calendar className="w-6 h-6 text-brand-500" />
         </div>
       </div>
-      <h3 className="font-semibold text-gray-900 mb-2">Syncing your data…</h3>
-      <p className="text-sm text-gray-500 mb-6 max-w-xs">{phases[phase]}</p>
+      <h3 className="mb-2 font-semibold text-slate-900 [font-family:var(--font-heading)]">Syncing your data...</h3>
+      <p className="mb-6 max-w-xs text-sm text-slate-500">{phases[phase]}</p>
       <div className="flex gap-1">
         {phases.map((_, i) => (
           <div
             key={i}
             className={clsx(
               'h-1 rounded-full transition-all duration-500',
-              i <= phase ? 'w-8 bg-brand-500' : 'w-2 bg-gray-200',
+              i <= phase ? 'w-8 bg-brand-500' : 'w-2 bg-slate-200',
             )}
           />
         ))}
@@ -227,11 +226,11 @@ function SyncingState({ onDone }: { onDone: (data: PreviewData) => void }) {
 function NoIntegrationState() {
   return (
     <div className="card p-12 text-center">
-      <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-        <Calendar className="w-8 h-8 text-gray-400" />
+      <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-slate-100">
+        <Calendar className="h-8 w-8 text-slate-400" />
       </div>
-      <h3 className="font-semibold text-gray-900 mb-2">No integrations connected</h3>
-      <p className="text-gray-500 text-sm max-w-xs mx-auto mb-6">
+      <h3 className="mb-2 font-semibold text-slate-900 [font-family:var(--font-heading)]">No integrations connected</h3>
+      <p className="mx-auto mb-6 max-w-xs text-sm text-slate-500">
         Connect Google Calendar to start seeing your meeting load, focus time, and work pattern data.
       </p>
       <a href="/dashboard/settings" className="btn-primary inline-flex">
@@ -247,13 +246,13 @@ function ScoreCard({ label, score, description, color }: {
   return (
     <div className="card p-5">
       <div className="flex items-center justify-between mb-3">
-        <span className="text-sm text-gray-600">{label}</span>
-        <span className="text-xl font-bold" style={{ color }}>{Math.round(score)}</span>
+        <span className="text-sm text-slate-600">{label}</span>
+        <span className="text-xl font-semibold [font-family:var(--font-heading)]" style={{ color }}>{Math.round(score)}</span>
       </div>
-      <div className="h-2 bg-gray-100 rounded-full overflow-hidden mb-3">
+      <div className="mb-3 h-2 overflow-hidden rounded-full bg-slate-200">
         <div className="h-full rounded-full transition-all duration-700" style={{ width: `${score}%`, backgroundColor: color }} />
       </div>
-      <p className="text-xs text-gray-500">{description}</p>
+      <p className="text-xs text-slate-500">{description}</p>
     </div>
   );
 }
@@ -278,7 +277,6 @@ export default function MyScoresPage() {
 
   const activePreview = previewData ?? preview;
   const hasWeeklyScores = (scores?.weeklyScores?.length ?? 0) > 0;
-  const hasAnyData = activePreview?.daysCollected && activePreview.daysCollected > 0;
   const noIntegrationEver = !scoresLoading && !previewLoading && !hasWeeklyScores && activePreview?.lastSyncedAt === null;
 
   // On first load: if no preview data at all, trigger a sync automatically
@@ -315,11 +313,11 @@ export default function MyScoresPage() {
   // Show syncing animation (auto or manual)
   if (syncing) {
     return (
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
+      <div className="space-y-6 reveal-up">
+        <div className="rounded-2xl border border-slate-200/80 bg-white/70 p-4">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">My Scores</h1>
-            <p className="text-gray-600 text-sm mt-1">Your personal health signals</p>
+            <h1 className="text-2xl font-semibold text-slate-900 [font-family:var(--font-heading)]">My Scores</h1>
+            <p className="mt-1 text-sm text-slate-600">Your personal health signals</p>
           </div>
         </div>
         <SyncingState onDone={handleSyncDone} />
@@ -336,12 +334,12 @@ export default function MyScoresPage() {
   const riskFlags = latest?.score_breakdown?.riskFlags || activePreview?.partialScores?.riskFlags || [];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5 reveal-up">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between rounded-2xl border border-slate-200/80 bg-white/70 p-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">My Scores</h1>
-          <p className="text-gray-600 text-sm mt-1">Your personal health signals — only visible to you and your manager</p>
+          <h1 className="text-2xl font-semibold text-slate-900 [font-family:var(--font-heading)]">My Scores</h1>
+          <p className="text-slate-600 text-sm mt-1">Your personal health signals — visible only to you and your manager.</p>
         </div>
         <div className="flex items-center gap-3">
           {activePreview && <DataFreshnessChip lastSyncedAt={activePreview.lastSyncedAt} />}
@@ -370,11 +368,11 @@ export default function MyScoresPage() {
           {!hasWeeklyScores && activePreview?.daysCollected !== undefined && (
             <div className="space-y-4">
               {/* Confidence / data collection progress banner */}
-              <div className="card p-4 flex items-start gap-3 border-brand-200 bg-brand-50">
+              <div className="card p-4 flex items-start gap-3 border-cyan-200 bg-cyan-50">
                 <Info className="w-4 h-4 text-brand-500 mt-0.5 flex-shrink-0" />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <p className="text-sm font-medium text-brand-900">
+                    <p className="text-sm font-medium text-cyan-900">
                       Week in progress
                     </p>
                     <ConfidenceBadge
@@ -383,20 +381,20 @@ export default function MyScoresPage() {
                       needed={activePreview.daysNeededForFull}
                     />
                   </div>
-                  <p className="text-xs text-brand-700 mt-1">
+                  <p className="text-xs text-cyan-800 mt-1">
                     {activePreview.daysCollected === 0
                       ? 'Your calendar was just synced. Data will appear below after the first day is processed.'
                       : `Scores shown below are estimated from ${activePreview.daysCollected} day${activePreview.daysCollected !== 1 ? 's' : ''} of data. Full scores are computed after 7 days.`}
                   </p>
                   {/* Progress bar */}
                   <div className="mt-3 flex items-center gap-2">
-                    <div className="flex-1 h-1.5 bg-brand-200 rounded-full overflow-hidden">
+                    <div className="flex-1 h-1.5 bg-cyan-200 rounded-full overflow-hidden">
                       <div
-                        className="h-full bg-brand-500 rounded-full transition-all duration-700"
+                        className="h-full bg-cyan-600 rounded-full transition-all duration-700"
                         style={{ width: `${Math.min(100, (activePreview.daysCollected / activePreview.daysNeededForFull) * 100)}%` }}
                       />
                     </div>
-                    <span className="text-xs text-brand-600 font-medium">
+                    <span className="text-xs text-cyan-700 font-medium">
                       {activePreview.daysNeededForFull - activePreview.daysCollected} day{activePreview.daysNeededForFull - activePreview.daysCollected !== 1 ? 's' : ''} until full scores
                     </span>
                   </div>
@@ -415,7 +413,7 @@ export default function MyScoresPage() {
               {activePreview.partialScores && (
                 <div>
                   <div className="flex items-center justify-between mb-3">
-                    <h2 className="text-sm font-semibold text-gray-700">Estimated Scores</h2>
+                    <h2 className="text-sm font-semibold text-slate-700">Estimated Scores</h2>
                     <ConfidenceBadge
                       confidence={activePreview.confidence}
                       days={activePreview.daysCollected}
@@ -480,14 +478,14 @@ export default function MyScoresPage() {
               {/* 6-week trend chart */}
               {chartData.length > 1 && (
                 <div className="card p-6">
-                  <h2 className="text-sm font-semibold text-gray-700 mb-4">6-Week Trend</h2>
+                  <h2 className="text-sm font-semibold text-slate-700 mb-4">6-Week Trend</h2>
                   <ResponsiveContainer width="100%" height={200}>
                     <LineChart data={chartData} margin={{ top: 5, right: 5, bottom: 5, left: 0 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#F3F4F6" />
-                      <XAxis dataKey="week" tick={{ fontSize: 11, fill: '#9CA3AF' }} />
-                      <YAxis domain={[0, 100]} tick={{ fontSize: 11, fill: '#9CA3AF' }} />
+                      <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                      <XAxis dataKey="week" tick={{ fontSize: 11, fill: '#64748b' }} />
+                      <YAxis domain={[0, 100]} tick={{ fontSize: 11, fill: '#64748b' }} />
                       <Tooltip
-                        contentStyle={{ fontSize: 12, borderRadius: 8, border: '1px solid #E5E7EB' }}
+                        contentStyle={{ fontSize: 12, borderRadius: 10, border: '1px solid #cbd5e1', background: 'rgba(255,255,255,0.95)' }}
                         formatter={(v: number, name: string) => [v, name === 'risk' ? 'Burnout Risk' : 'Focus Score']}
                       />
                       <Line type="monotone" dataKey="risk" stroke="#EF4444" strokeWidth={2} dot={{ r: 4, fill: '#EF4444' }} name="risk" />
@@ -495,10 +493,10 @@ export default function MyScoresPage() {
                     </LineChart>
                   </ResponsiveContainer>
                   <div className="flex justify-center gap-4 mt-2">
-                    <div className="flex items-center gap-1.5 text-xs text-gray-500">
+                    <div className="flex items-center gap-1.5 text-xs text-slate-500">
                       <div className="w-3 h-0.5 bg-red-400 rounded" /> Burnout Risk
                     </div>
-                    <div className="flex items-center gap-1.5 text-xs text-gray-500">
+                    <div className="flex items-center gap-1.5 text-xs text-slate-500">
                       <div className="w-3 h-0.5 bg-green-400 rounded" /> Focus Score
                     </div>
                   </div>
@@ -508,21 +506,21 @@ export default function MyScoresPage() {
               {/* Daily breakdown for last 14 days */}
               {scores?.recentDaily && scores.recentDaily.length > 0 && (
                 <div className="card p-5">
-                  <h2 className="text-sm font-semibold text-gray-700 mb-4">Last 14 Days — Daily Detail</h2>
+                  <h2 className="text-sm font-semibold text-slate-700 mb-4">Last 14 Days — Daily Detail</h2>
                   <div className="space-y-2">
                     {scores.recentDaily.slice(0, 7).map((day) => {
                       const focusPct = Math.min(100, (day.solo_focus_minutes / 480) * 100);
                       const meetingPct = Math.min(100, (day.total_meeting_minutes / 480) * 100);
                       return (
                         <div key={day.date} className="flex items-center gap-3">
-                          <span className="text-xs text-gray-500 w-16 flex-shrink-0">
+                          <span className="text-xs text-slate-500 w-16 flex-shrink-0">
                             {format(parseISO(day.date), 'EEE d')}
                           </span>
-                          <div className="flex-1 h-5 bg-gray-100 rounded-md overflow-hidden flex">
+                          <div className="flex-1 h-5 bg-slate-100 rounded-md overflow-hidden flex">
                             <div className="h-full bg-amber-400 transition-all" style={{ width: `${meetingPct}%` }} title={`${day.total_meeting_minutes}min meetings`} />
                             <div className="h-full bg-green-400 transition-all" style={{ width: `${focusPct}%` }} title={`${day.solo_focus_minutes}min focus`} />
                           </div>
-                          <div className="text-xs text-gray-500 w-28 flex-shrink-0 text-right">
+                          <div className="text-xs text-slate-500 w-28 flex-shrink-0 text-right">
                             {day.meeting_count}mtg · {day.solo_focus_minutes}m focus
                           </div>
                         </div>
@@ -530,10 +528,10 @@ export default function MyScoresPage() {
                     })}
                   </div>
                   <div className="flex gap-4 mt-3">
-                    <div className="flex items-center gap-1.5 text-xs text-gray-400">
+                    <div className="flex items-center gap-1.5 text-xs text-slate-400">
                       <div className="w-3 h-3 bg-amber-400 rounded-sm" /> Meetings
                     </div>
-                    <div className="flex items-center gap-1.5 text-xs text-gray-400">
+                    <div className="flex items-center gap-1.5 text-xs text-slate-400">
                       <div className="w-3 h-3 bg-green-400 rounded-sm" /> Focus time
                     </div>
                   </div>
@@ -545,7 +543,7 @@ export default function MyScoresPage() {
           {/* Risk flags — shown for both partial and full scores */}
           {riskFlags.length > 0 && (
             <div className="space-y-2">
-              <h2 className="text-sm font-semibold text-gray-700">
+              <h2 className="text-sm font-semibold text-slate-700">
                 {hasWeeklyScores ? "What's driving your score" : 'Early signals — based on data so far'}
               </h2>
               {riskFlags.map((flag: string, i: number) => (

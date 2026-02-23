@@ -9,12 +9,16 @@
   "scripts": {
     "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
     "dev:backend": "npm --workspace=backend run start:dev",
-    "dev:frontend": "npm --workspace=frontend run dev",
+    "dev:frontend": "npm run clean:frontend && npm --workspace=frontend run dev",
+    "clean:frontend": "rm -rf frontend/.next node_modules/.cache frontend/node_modules/.cache",
     "build": "npm run build:backend && npm run build:frontend",
     "build:backend": "npm --workspace=backend run build",
     "build:frontend": "npm --workspace=frontend run build",
     "db:migrate": "npm --workspace=backend run db:migrate",
     "db:seed": "npm --workspace=backend run db:seed"
+  },
+  "engines": {
+    "node": ">=20 <23"
   },
   "devDependencies": {
     "concurrently": "^8.2.2"

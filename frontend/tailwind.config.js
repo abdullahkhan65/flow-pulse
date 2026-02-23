@@ -5,11 +5,11 @@ module.exports = {
     extend: {
       colors: {
         brand: {
-          50: '#EEF2FF',
-          100: '#E0E7FF',
-          500: '#6366F1',
-          600: '#4F46E5',
-          700: '#4338CA',
+          50: '#ecfeff',
+          100: '#cffafe',
+          500: '#0f766e',
+          600: '#0d6660',
+          700: '#0b5651',
         },
         risk: {
           low: '#10B981',
@@ -19,7 +19,8 @@ module.exports = {
         },
       },
       fontFamily: {
-        sans: ['-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'sans-serif'],
+        sans: ['var(--font-body)', 'ui-sans-serif', 'system-ui'],
+        heading: ['var(--font-heading)', 'ui-sans-serif', 'system-ui'],
       },
     },
   },
