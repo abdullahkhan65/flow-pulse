@@ -17,7 +17,7 @@ export class JiraService {
 
   getOAuthUrl(state: string): string {
     const clientId = this.configService.get('jira.clientId');
-    const callbackUrl = encodeURIComponent(this.configService.get('jira.callbackUrl'));
+    const callbackUrl = encodeURIComponent(this.configService.get('jira.callbackUrl') ?? '');
     const scopes = encodeURIComponent('read:jira-work read:jira-user');
     return `https://auth.atlassian.com/authorize?audience=api.atlassian.com&client_id=${clientId}&scope=${scopes}&redirect_uri=${callbackUrl}&state=${state}&response_type=code&prompt=consent`;
   }
@@ -42,7 +42,7 @@ export class JiraService {
     if (!sites.length) throw new Error('No Jira sites found');
 
     const primarySite = sites[0];
-    const encKey = this.configService.get<string>('encryption.key');
+    const encKey = this.configService.get<string>('encryption.key')!;
 
     await this.db.query(
       `INSERT INTO integrations (organization_id, user_id, type, access_token, refresh_token, token_expires_at, status, metadata)
@@ -85,7 +85,7 @@ export class JiraService {
     );
     if (!result.rows[0]) return { synced: 0 };
 
-    const encKey = this.configService.get<string>('encryption.key');
+    const encKey = this.configService.get<string>('encryption.key')!;
     const token = decrypt(result.rows[0].access_token, encKey);
     const { cloudId } = result.rows[0].metadata;
 
@@ -117,7 +117,7 @@ export class JiraService {
     );
 
     const issues = issuesRes.data.issues || [];
-    const logs = [];
+    const logs: any[] = [];
 
     for (const issue of issues) {
       const changelog = issue.changelog?.histories || [];

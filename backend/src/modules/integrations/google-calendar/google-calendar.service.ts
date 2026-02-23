@@ -49,7 +49,7 @@ export class GoogleCalendarService {
     );
     if (!result.rows[0]) return null;
 
-    const encKey = this.configService.get<string>('encryption.key');
+    const encKey = this.configService.get<string>('encryption.key')!;
     const row = result.rows[0];
     return {
       accessToken: decrypt(row.access_token, encKey),
@@ -60,7 +60,7 @@ export class GoogleCalendarService {
   }
 
   private async saveRefreshedTokens(userId: string, accessToken: string, expiresAt: Date) {
-    const encKey = this.configService.get<string>('encryption.key');
+    const encKey = this.configService.get<string>('encryption.key')!;
     await this.db.query(
       `UPDATE integrations
        SET access_token = $1, token_expires_at = $2, updated_at = NOW()
@@ -97,18 +97,23 @@ export class GoogleCalendarService {
     const endTime = parseISO(event.end.dateTime);
     const durationSeconds = (endTime.getTime() - startTime.getTime()) / 1000;
 
-    // Filter noise: skip <5 min events
-    if (durationSeconds < 300) return null;
+    // Filter noise: skip <1 min events (very short calendar entries are likely noise)
+    if (durationSeconds < 60) return null;
 
     const participantsCount = (event.attendees?.length || 1);
+    const hasConferencing = !!(event.conferenceData || event.hangoutLink);
     const workdayStart = parseInt(orgSettings?.workdayStart?.split(':')[0] || '9');
     const workdayEnd = parseInt(orgSettings?.workdayEnd?.split(':')[0] || '18');
+
+    // Treat as meeting if: multiple attendees OR has a video conferencing link
+    // (Google Meet calls sometimes don't populate attendees on the organizer's calendar)
+    const eventType = (participantsCount > 1 || hasConferencing) ? 'meeting' : 'focus_block';
 
     return {
       userId,
       organizationId: orgId,
       source: 'google_calendar',
-      eventType: participantsCount > 1 ? 'meeting' : 'focus_block',
+      eventType,
       occurredAt: startTime,
       durationSeconds,
       participantsCount,
@@ -116,7 +121,7 @@ export class GoogleCalendarService {
       isAfterHours: this.isAfterWorkHours(startTime, workdayStart, workdayEnd),
       isWeekend: this.isWeekend(startTime),
       metadata: {
-        hasVideoConferencing: !!(event.conferenceData || event.hangoutLink),
+        hasVideoConferencing: hasConferencing,
         isOrganizer: event.organizer?.self || false,
         responseStatus,
       },

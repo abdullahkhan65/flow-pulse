@@ -1,6 +1,6 @@
 export default () => ({
   nodeEnv: process.env.NODE_ENV || 'development',
-  port: parseInt(process.env.PORT, 10) || 3001,
+  port: parseInt(process.env.PORT ?? '3001', 10) || 3001,
   frontendUrl: process.env.FRONTEND_URL || 'http://localhost:3000',
 
   database: {
@@ -33,7 +33,7 @@ export default () => ({
 
   email: {
     host: process.env.SMTP_HOST,
-    port: parseInt(process.env.SMTP_PORT, 10) || 465,
+    port: parseInt(process.env.SMTP_PORT ?? '465', 10) || 465,
     user: process.env.SMTP_USER,
     pass: process.env.SMTP_PASS,
     from: process.env.EMAIL_FROM || 'noreply@flowpulse.app',

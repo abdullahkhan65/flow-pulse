@@ -36,9 +36,9 @@ export class AuthController {
     const token = this.authService.generateJwt(user);
     const frontendUrl = this.configService.get<string>('frontendUrl');
 
-    // Redirect to frontend with token
-    const redirectPath = isNew ? '/onboarding' : '/dashboard';
-    res.redirect(`${frontendUrl}${redirectPath}?token=${token}`);
+    // Redirect to frontend — always via /login so the token is picked up and stored
+    const redirectPath = isNew ? `/login?new=true&token=${token}` : `/login?token=${token}`;
+    res.redirect(`${frontendUrl}${redirectPath}`);
   }
 
   @Get('me')

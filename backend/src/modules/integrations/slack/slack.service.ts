@@ -17,7 +17,7 @@ export class SlackService {
 
   getOAuthUrl(state: string): string {
     const clientId = this.configService.get('slack.clientId');
-    const callbackUrl = encodeURIComponent(this.configService.get('slack.callbackUrl'));
+    const callbackUrl = encodeURIComponent(this.configService.get('slack.callbackUrl') ?? '');
     const scopes = [
       'users:read',
       'users:read.email',
@@ -44,7 +44,7 @@ export class SlackService {
     const data = response.data;
     if (!data.ok) throw new Error(`Slack OAuth error: ${data.error}`);
 
-    const encKey = this.configService.get<string>('encryption.key');
+    const encKey = this.configService.get<string>('encryption.key')!;
     const encToken = encrypt(data.access_token, encKey);
 
     await this.db.query(
@@ -97,7 +97,7 @@ export class SlackService {
     );
     if (!result.rows[0]) return { synced: 0 };
 
-    const encKey = this.configService.get<string>('encryption.key');
+    const encKey = this.configService.get<string>('encryption.key')!;
     const token = decrypt(result.rows[0].access_token, encKey);
     const metadata = result.rows[0].metadata;
     const slackUserId = metadata?.slackUserId;
@@ -125,7 +125,7 @@ export class SlackService {
     const oldest = (Date.now() / 1000 - 7 * 24 * 3600).toString();
 
     let totalMessages = 0;
-    const logs = [];
+    const logs: any[] = [];
 
     for (const channel of channels.slice(0, 20)) { // Limit to 20 channels
       try {

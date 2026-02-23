@@ -1,7 +1,7 @@
 import { Injectable, Inject, Logger } from '@nestjs/common';
 import { Pool } from 'pg';
 import { DATABASE_POOL } from '../../database/database.module';
-import { startOfWeek, endOfWeek, format, subWeeks } from 'date-fns';
+import { startOfWeek, endOfWeek, format, subWeeks, startOfDay, addDays } from 'date-fns';
 import { computeMeetingLoadScore } from './engines/meeting-load.engine';
 import { computeContextSwitchScore } from './engines/context-switch.engine';
 import { computeSlackInterruptScore } from './engines/slack-interrupt.engine';
@@ -62,14 +62,18 @@ export class AnalyticsService {
 
   async buildDailyAggregates(userId: string, orgId: string, date: Date): Promise<void> {
     const dateStr = format(date, 'yyyy-MM-dd');
+    // Use explicit local-timezone boundaries so events stored in UTC are bucketed
+    // by the server's local day (matches the user's working day) rather than UTC day.
+    const dayStart = startOfDay(date).toISOString();
+    const dayEnd = addDays(startOfDay(date), 1).toISOString();
 
     const logsResult = await this.db.query<RawActivityLog>(
       `SELECT * FROM raw_activity_logs
        WHERE user_id = $1
-         AND occurred_at >= $2::date
-         AND occurred_at < $2::date + INTERVAL '1 day'
+         AND occurred_at >= $2
+         AND occurred_at < $3
        ORDER BY occurred_at ASC`,
-      [userId, dateStr],
+      [userId, dayStart, dayEnd],
     );
 
     const logs = logsResult.rows.map((r) => ({
@@ -97,13 +101,18 @@ export class AnalyticsService {
       if (gap >= 0 && gap < 10) b2bCount++;
     }
 
-    // Focus blocks: gaps ≥30 min between meetings during work hours (8am–6pm)
+    // Focus blocks: gaps ≥30 min between meetings during work hours (9am–6pm)
     const WORK_START = 9 * 60;
     const WORK_END = 18 * 60;
     let soloFocusMinutes = 0;
 
+    // Only count focus if the person has any activity data that day.
+    // An empty day (no logs) means no data — not a 9-hour focus block.
+    const hasAnyActivity = logs.length > 0;
+
     if (meetings.length === 0) {
-      soloFocusMinutes = WORK_END - WORK_START;
+      // No meetings — count whole workday as focus only if other signals show they were working
+      soloFocusMinutes = hasAnyActivity ? WORK_END - WORK_START : 0;
     } else {
       const sortedMeetings = [...meetings].sort(
         (a, b) => a.occurred_at.getTime() - b.occurred_at.getTime(),

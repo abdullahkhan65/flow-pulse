@@ -23,7 +23,7 @@ export class AuthService {
   ) {}
 
   async findOrCreateGoogleUser(payload: GoogleUserPayload): Promise<{ user: any; isNew: boolean }> {
-    const encKey = this.configService.get<string>('encryption.key');
+    const encKey = this.configService.get<string>('encryption.key')!;
 
     // Check if user already exists
     const existing = await this.db.query(
