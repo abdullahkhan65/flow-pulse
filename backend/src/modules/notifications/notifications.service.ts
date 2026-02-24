@@ -109,6 +109,16 @@ export class NotificationsService {
     return result.rows[0] || null;
   }
 
+  async sendInviteEmail(toEmail: string, orgName: string, loginUrl: string) {
+    await this.sendEmail({
+      to: toEmail,
+      subject: `You've been invited to ${orgName} on FlowPulse`,
+      html: generateInviteEmail(toEmail, orgName, loginUrl),
+    }).catch((err) => {
+      this.logger.error(`Failed to send invite to ${toEmail}: ${err.message}`);
+    });
+  }
+
   private async sendEmail(options: { to: string; subject: string; html: string }) {
     await this.transporter.sendMail({
       from: this.configService.get('email.from'),
@@ -158,6 +168,45 @@ function generateDigestEmail(manager: any, teamData: any, weekStart: Date): stri
     <br><br>
     <a href="${process.env.FRONTEND_URL}/dashboard" style="color: #6366F1;">View full dashboard →</a>
   </p>
+</body>
+</html>`;
+}
+
+function generateInviteEmail(toEmail: string, orgName: string, loginUrl: string): string {
+  return `
+<!DOCTYPE html>
+<html>
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; color: #111827; background: #f4f8f8;">
+  <div style="background: #ffffff; border-radius: 16px; padding: 40px; box-shadow: 0 4px 24px rgba(10,28,34,0.08);">
+    <div style="text-align: center; margin-bottom: 32px;">
+      <div style="display: inline-flex; align-items: center; justify-content: center; width: 48px; height: 48px; background: linear-gradient(135deg, #0f766e, #0891b2); border-radius: 12px; font-size: 14px; font-weight: 700; color: white; margin-bottom: 12px;">FP</div>
+      <h1 style="margin: 0; font-size: 22px; color: #102126;">You're invited to FlowPulse</h1>
+      <p style="margin: 8px 0 0; color: #5b6f76; font-size: 15px;"><strong>${orgName}</strong> is using FlowPulse to track team health and prevent burnout.</p>
+    </div>
+
+    <p style="color: #374151; margin-bottom: 24px;">
+      Your manager has added you to their FlowPulse workspace. Once you sign in, FlowPulse will analyze your work patterns (meetings, focus time, after-hours activity) to help identify burnout risk early.
+    </p>
+
+    <div style="text-align: center; margin-bottom: 32px;">
+      <a href="${loginUrl}" style="display: inline-block; background: linear-gradient(135deg, #0f766e, #0891b2); color: white; text-decoration: none; padding: 14px 32px; border-radius: 12px; font-weight: 600; font-size: 15px;">Accept Invite &amp; Sign In →</a>
+    </div>
+
+    <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 10px; padding: 16px; margin-bottom: 24px;">
+      <p style="margin: 0; font-size: 13px; color: #166534; font-weight: 600;">Privacy guarantee</p>
+      <ul style="margin: 8px 0 0; padding-left: 18px; font-size: 13px; color: #15803d; line-height: 1.6;">
+        <li>We never read or store message content</li>
+        <li>Meeting titles and attendee names are never stored</li>
+        <li>Only metadata: counts, timestamps, durations</li>
+        <li>You can export or delete your data at any time</li>
+      </ul>
+    </div>
+
+    <p style="font-size: 12px; color: #9ca3af; text-align: center; margin: 0;">
+      If you weren't expecting this invite, you can safely ignore this email.<br>
+      This invite was sent to ${toEmail}.
+    </p>
+  </div>
 </body>
 </html>`;
 }

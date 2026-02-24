@@ -5,6 +5,8 @@ import { DATABASE_POOL } from '../../database/database.module';
 import { GoogleCalendarService } from '../integrations/google-calendar/google-calendar.service';
 import { SlackService } from '../integrations/slack/slack.service';
 import { JiraService } from '../integrations/jira/jira.service';
+import { GmailService } from '../integrations/gmail/gmail.service';
+import { GithubService } from '../integrations/github/github.service';
 import { AnalyticsService } from '../analytics/analytics.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { startOfWeek, subDays, format } from 'date-fns';
@@ -19,6 +21,8 @@ export class JobsService {
     private googleCalendarService: GoogleCalendarService,
     private slackService: SlackService,
     private jiraService: JiraService,
+    private gmailService: GmailService,
+    private githubService: GithubService,
     private analyticsService: AnalyticsService,
     private notificationsService: NotificationsService,
   ) {}
@@ -72,11 +76,18 @@ export class JobsService {
       types.includes('google_calendar')
         ? this.googleCalendarService.syncUserCalendar(userId, orgId)
         : Promise.resolve(),
+      // Gmail uses the same google_calendar tokens — always run if calendar is active
+      types.includes('google_calendar')
+        ? this.gmailService.syncUserEmails(userId, orgId)
+        : Promise.resolve(),
       types.includes('slack')
         ? this.slackService.syncUserMessages(userId, orgId)
         : Promise.resolve(),
       types.includes('jira')
         ? this.jiraService.syncUserActivity(userId, orgId)
+        : Promise.resolve(),
+      types.includes('github')
+        ? this.githubService.syncUserActivity(userId, orgId)
         : Promise.resolve(),
     ]);
   }

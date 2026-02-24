@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
-import { Bell, LayoutDashboard, LogOut, Settings, Users } from 'lucide-react';
+import { Bell, Calendar, LayoutDashboard, LogOut, Settings, Users } from 'lucide-react';
 import { api, clearToken, User } from '@/lib/api';
 
 function NavItem({ href, icon: Icon, label, active }: {
@@ -71,6 +71,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <nav className="grid gap-1">
             <NavItem href="/dashboard" icon={LayoutDashboard} label="Team Dashboard" active={pathname === '/dashboard'} />
             {isManager && <NavItem href="/dashboard/members" icon={Users} label="Team Members" active={pathname === '/dashboard/members'} />}
+            {isManager && <NavItem href="/dashboard/calendar" icon={Calendar} label="Team Calendar" active={pathname === '/dashboard/calendar'} />}
             <NavItem href="/dashboard/my-scores" icon={Bell} label="My Scores" active={pathname === '/dashboard/my-scores'} />
             <NavItem href="/dashboard/settings" icon={Settings} label="Settings" active={pathname === '/dashboard/settings'} />
           </nav>

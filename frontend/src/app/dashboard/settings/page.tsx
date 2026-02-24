@@ -2,9 +2,9 @@
 
 import { useState } from 'react';
 import useSWR from 'swr';
-import { api, Integration, Organization } from '@/lib/api';
+import { api, Integration, Organization, BillingStatus, User } from '@/lib/api';
 import clsx from 'clsx';
-import { CheckCircle, XCircle, Download, Trash2 } from 'lucide-react';
+import { CheckCircle, XCircle, Download, Trash2, CreditCard, Zap } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 
 function IntegrationCard({
@@ -75,11 +75,17 @@ export default function SettingsPage() {
     'integrations', () => api.getIntegrations(),
   );
   const { data: org } = useSWR<Organization>('org', () => api.getOrg());
+  const { data: me } = useSWR<User>('me', () => api.getMe());
+  const { data: billing } = useSWR<BillingStatus>(
+    'billing-status', () => api.getBillingStatus(),
+  );
 
   const [consent, setConsent] = useState(true);
   const [deleteConfirm, setDeleteConfirm] = useState(false);
+  const [billingLoading, setBillingLoading] = useState<'checkout' | 'portal' | null>(null);
 
   const getIntegration = (type: string) => integrations?.find((i) => i.type === type);
+  const isAdminOrOwner = me?.role === 'owner' || me?.role === 'admin';
 
   const handleConnect = async (type: string) => {
     if (type === 'google_calendar') {
@@ -90,6 +96,29 @@ export default function SettingsPage() {
     } else if (type === 'jira') {
       const { url } = await api.connectJira();
       window.location.href = url;
+    } else if (type === 'github') {
+      const { url } = await api.connectGithub();
+      window.location.href = url;
+    }
+  };
+
+  const handleUpgrade = async () => {
+    setBillingLoading('checkout');
+    try {
+      const { url } = await api.createCheckoutSession(10);
+      window.location.href = url;
+    } finally {
+      setBillingLoading(null);
+    }
+  };
+
+  const handleManageBilling = async () => {
+    setBillingLoading('portal');
+    try {
+      const { url } = await api.getBillingPortal();
+      window.location.href = url;
+    } finally {
+      setBillingLoading(null);
     }
   };
 
@@ -154,6 +183,14 @@ export default function SettingsPage() {
             icon={<span className="text-xl">🎯</span>}
             integration={getIntegration('jira')}
             onConnect={() => handleConnect('jira')}
+          />
+          <IntegrationCard
+            type="github"
+            label="GitHub"
+            description="Commit counts, PR events, and review activity. No repo names, PR titles, or code content."
+            icon={<span className="text-xl">🐙</span>}
+            integration={getIntegration('github')}
+            onConnect={() => handleConnect('github')}
           />
         </div>
       </Section>
@@ -237,6 +274,94 @@ export default function SettingsPage() {
               <span className="text-slate-600">Work Hours</span>
               <span className="font-medium">{org.settings.workdayStart} – {org.settings.workdayEnd}</span>
             </div>
+          </div>
+        </Section>
+      )}
+
+      {/* Plan & Billing — owner/admin only */}
+      {isAdminOrOwner && billing && (
+        <Section title="Plan & Billing" description="Manage your subscription and seats.">
+          <div className="card p-5 space-y-4">
+            {/* Status badge row */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                {billing.status === 'trialing' ? (
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-100 border border-amber-200 px-3 py-1 text-xs font-semibold text-amber-800">
+                    <Zap className="w-3 h-3" />
+                    Trial
+                  </span>
+                ) : billing.status === 'active' ? (
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-green-100 border border-green-200 px-3 py-1 text-xs font-semibold text-green-800">
+                    <CheckCircle className="w-3 h-3" />
+                    Pro
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-red-100 border border-red-200 px-3 py-1 text-xs font-semibold text-red-800">
+                    <XCircle className="w-3 h-3" />
+                    {billing.status.replace('_', ' ')}
+                  </span>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                {billing.status !== 'active' && (
+                  <button
+                    onClick={handleUpgrade}
+                    disabled={billingLoading === 'checkout'}
+                    className="btn-primary text-sm px-4 py-2 gap-1.5"
+                  >
+                    <Zap className="w-3.5 h-3.5" />
+                    {billingLoading === 'checkout' ? 'Redirecting...' : 'Upgrade Plan'}
+                  </button>
+                )}
+                {billing.status === 'active' && (
+                  <button
+                    onClick={handleManageBilling}
+                    disabled={billingLoading === 'portal'}
+                    className="btn-secondary text-sm px-4 py-2 gap-1.5"
+                  >
+                    <CreditCard className="w-3.5 h-3.5" />
+                    {billingLoading === 'portal' ? 'Redirecting...' : 'Manage Billing'}
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Stats row */}
+            <div className="grid grid-cols-3 gap-3 pt-1">
+              <div className="rounded-xl bg-slate-50 border border-slate-100 p-3">
+                <p className="text-xs text-slate-500">Seats used</p>
+                <p className="mt-1 text-lg font-semibold text-slate-900">
+                  {billing.activeSeats}
+                  <span className="text-sm font-normal text-slate-400"> / {billing.seats}</span>
+                </p>
+              </div>
+              {billing.status === 'trialing' && billing.daysLeftInTrial != null && (
+                <div className="rounded-xl bg-amber-50 border border-amber-100 p-3">
+                  <p className="text-xs text-amber-700">Trial days left</p>
+                  <p className="mt-1 text-lg font-semibold text-amber-900">{billing.daysLeftInTrial}</p>
+                </div>
+              )}
+              {billing.status === 'active' && billing.currentPeriodEnd && (
+                <div className="rounded-xl bg-slate-50 border border-slate-100 p-3">
+                  <p className="text-xs text-slate-500">Renews</p>
+                  <p className="mt-1 text-sm font-semibold text-slate-900">
+                    {format(parseISO(billing.currentPeriodEnd), 'MMM d, yyyy')}
+                  </p>
+                </div>
+              )}
+              <div className="rounded-xl bg-slate-50 border border-slate-100 p-3">
+                <p className="text-xs text-slate-500">Price</p>
+                <p className="mt-1 text-sm font-semibold text-slate-900">
+                  {billing.status === 'trialing' ? 'Free trial' : `$5 / seat / mo`}
+                </p>
+              </div>
+            </div>
+
+            {billing.cancelAtPeriodEnd && (
+              <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
+                Your subscription is set to cancel at the end of the billing period.
+              </p>
+            )}
           </div>
         </Section>
       )}

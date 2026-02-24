@@ -1,10 +1,16 @@
 import { Injectable, Inject, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { Pool } from 'pg';
+import { ConfigService } from '@nestjs/config';
 import { DATABASE_POOL } from '../../database/database.module';
+import { NotificationsService } from '../notifications/notifications.service';
 
 @Injectable()
 export class OrganizationsService {
-  constructor(@Inject(DATABASE_POOL) private db: Pool) {}
+  constructor(
+    @Inject(DATABASE_POOL) private db: Pool,
+    private configService: ConfigService,
+    private notificationsService: NotificationsService,
+  ) {}
 
   async findById(id: string) {
     const result = await this.db.query(
@@ -48,7 +54,35 @@ export class OrganizationsService {
   }
 
   async inviteMember(orgId: string, email: string, role: string = 'member') {
-    // In V1 — just create placeholder user. They log in via Google OAuth.
+    // Check seat limit before creating user
+    const billingRow = await this.db.query(
+      `SELECT bs.seats, o.trial_ends_at,
+              COUNT(u.id) FILTER (WHERE u.is_active = true) as active_seats
+       FROM organizations o
+       LEFT JOIN billing_subscriptions bs ON bs.organization_id = o.id
+       LEFT JOIN users u ON u.organization_id = o.id
+       WHERE o.id = $1
+       GROUP BY bs.seats, o.trial_ends_at`,
+      [orgId],
+    );
+
+    if (billingRow.rows.length > 0) {
+      const { seats, trial_ends_at, active_seats } = billingRow.rows[0];
+      const seatLimit = seats || 4;
+      const isTrialExpired = trial_ends_at && new Date(trial_ends_at) < new Date();
+
+      if (parseInt(active_seats) >= seatLimit) {
+        throw new ForbiddenException(
+          `Seat limit reached (${seatLimit} seats). Upgrade your plan to add more members.`,
+        );
+      }
+      if (isTrialExpired) {
+        throw new ForbiddenException(
+          'Trial expired. Please upgrade your plan to invite members.',
+        );
+      }
+    }
+
     const existing = await this.db.query(
       `SELECT id FROM users WHERE organization_id = $1 AND email = $2`,
       [orgId, email],
@@ -63,6 +97,13 @@ export class OrganizationsService {
        RETURNING id, email, role`,
       [orgId, email, role],
     );
+
+    // Send invite email — fire and forget (non-blocking)
+    const org = await this.findById(orgId);
+    const frontendUrl = this.configService.get<string>('frontendUrl', 'http://localhost:3000');
+    const loginUrl = `${frontendUrl}/login?invited=true`;
+    this.notificationsService.sendInviteEmail(email, org.name, loginUrl);
+
     return result.rows[0];
   }
 

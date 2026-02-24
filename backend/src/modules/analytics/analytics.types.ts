@@ -15,13 +15,22 @@ export interface DailyAggregate {
   jira_transitions: number;
   jira_comments: number;
   context_switches: number;
+  // Email (Gmail)
+  emails_sent: number;
+  emails_received: number;
+  after_hours_emails: number;
+  avg_email_response_min: number | null;
+  // GitHub
+  github_commits: number;
+  github_pr_reviews: number;
+  github_prs_created: number;
 }
 
 export interface RawActivityLog {
   id: string;
   organization_id: string;
   user_id: string;
-  source: 'google_calendar' | 'slack' | 'jira';
+  source: 'google_calendar' | 'slack' | 'jira' | 'gmail' | 'github';
   event_type: string;
   occurred_at: Date;
   duration_seconds?: number;

@@ -243,6 +243,51 @@ export class DashboardService {
     return result.rows;
   }
 
+  // ─── Team Calendar (busyness heatmap) ─────────────────────────────────────
+
+  async getTeamCalendar(orgId: string, startDate: string) {
+    // 7-day window starting from startDate
+    const result = await this.db.query(
+      `SELECT
+         u.id as user_id,
+         u.name as member_name,
+         da.date,
+         da.total_meeting_minutes,
+         da.solo_focus_minutes,
+         da.after_hours_events,
+         da.meeting_count
+       FROM daily_aggregates da
+       JOIN users u ON u.id = da.user_id
+       WHERE u.organization_id = $1
+         AND u.is_active = true
+         AND u.data_collection_consent = true
+         AND da.date >= $2::date
+         AND da.date < ($2::date + INTERVAL '7 days')
+       ORDER BY u.name ASC, da.date ASC`,
+      [orgId, startDate],
+    );
+
+    return result.rows.map((row) => {
+      // loadLevel: based on meeting minutes + after-hours pressure
+      const meetingScore = Math.min((row.total_meeting_minutes / 240) * 100, 100);
+      const afterHoursScore = Math.min(row.after_hours_events * 20, 100);
+      const combined = meetingScore * 0.7 + afterHoursScore * 0.3;
+      const loadLevel =
+        combined >= 75 ? 'critical' : combined >= 50 ? 'high' : combined >= 25 ? 'medium' : 'low';
+
+      return {
+        userId: row.user_id,
+        memberName: row.member_name,
+        date: format(row.date, 'yyyy-MM-dd'),
+        loadLevel,
+        meetingMinutes: parseInt(row.total_meeting_minutes) || 0,
+        focusMinutes: parseInt(row.solo_focus_minutes) || 0,
+        afterHoursEvents: parseInt(row.after_hours_events) || 0,
+        meetingCount: parseInt(row.meeting_count) || 0,
+      };
+    });
+  }
+
   // ─── Export CSV ────────────────────────────────────────────────────────────
 
   async exportTeamCsv(orgId: string, weeks: number = 12): Promise<string> {

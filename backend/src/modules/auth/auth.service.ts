@@ -38,9 +38,9 @@ export class AuthService {
     if (existing.rows.length > 0) {
       const user = existing.rows[0];
 
-      // Update tokens and profile
+      // Update tokens and profile — also activate invited users (is_active was false)
       await this.db.query(
-        `UPDATE users SET google_id = $1, name = $2, avatar_url = $3, last_login_at = NOW() WHERE id = $4`,
+        `UPDATE users SET google_id = $1, name = $2, avatar_url = $3, last_login_at = NOW(), is_active = true WHERE id = $4`,
         [payload.googleId, payload.name, payload.avatarUrl, user.id],
       );
 
@@ -77,10 +77,19 @@ export class AuthService {
       const slug = `${baseSlug}-${Date.now().toString(36)}`;
 
       const orgResult = await client.query(
-        `INSERT INTO organizations (name, slug) VALUES ($1, $2) RETURNING *`,
+        `INSERT INTO organizations (name, slug, trial_ends_at, seat_limit)
+         VALUES ($1, $2, NOW() + INTERVAL '30 days', 4)
+         RETURNING *`,
         [emailDomain, slug],
       );
       const org = orgResult.rows[0];
+
+      // Initialize billing subscription (trialing)
+      await client.query(
+        `INSERT INTO billing_subscriptions (organization_id, status, seats, current_period_end)
+         VALUES ($1, 'trialing', 4, NOW() + INTERVAL '30 days')`,
+        [org.id],
+      );
 
       const userResult = await client.query(
         `INSERT INTO users (organization_id, email, name, avatar_url, google_id, role)

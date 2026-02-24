@@ -56,6 +56,20 @@ export const api = {
   // Integrations
   connectSlack: () => request<{ url: string }>('/integrations/slack/connect'),
   connectJira: () => request<{ url: string }>('/integrations/jira/connect'),
+  connectGithub: () => request<{ url: string }>('/integrations/github/connect'),
+
+  // Team calendar
+  getTeamCalendar: (start?: string) =>
+    request<TeamCalendarDay[]>(`/dashboard/team/calendar${start ? `?start=${start}` : ''}`),
+
+  // Billing
+  getBillingStatus: () => request<BillingStatus>('/billing/status'),
+  createCheckoutSession: (seats: number) =>
+    request<{ url: string }>('/billing/checkout', {
+      method: 'POST',
+      body: JSON.stringify({ seats }),
+    }),
+  getBillingPortal: () => request<{ url: string }>('/billing/portal'),
 
   // Organization
   getOrg: () => request<Organization>('/organizations/me'),
@@ -257,6 +271,28 @@ export interface PreviewData {
     avgFocusMinutesPerDay: number;
   } | null;
   partialScores: PartialScores | null;
+}
+
+export interface BillingStatus {
+  status: 'trialing' | 'active' | 'past_due' | 'canceled' | 'none';
+  plan: string;
+  seats: number;
+  activeSeats: number;
+  trialEndsAt: string | null;
+  currentPeriodEnd: string | null;
+  cancelAtPeriodEnd: boolean;
+  daysLeftInTrial: number | null;
+}
+
+export interface TeamCalendarDay {
+  userId: string;
+  memberName: string;
+  date: string;
+  loadLevel: 'low' | 'medium' | 'high' | 'critical';
+  meetingMinutes: number;
+  focusMinutes: number;
+  afterHoursEvents: number;
+  meetingCount: number;
 }
 
 export interface WeekInProgress {

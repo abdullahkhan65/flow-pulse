@@ -8,6 +8,7 @@ import { computeSlackInterruptScore } from './engines/slack-interrupt.engine';
 import { computeFocusScore } from './engines/focus-time.engine';
 import { computeAfterHoursScore } from './engines/after-hours.engine';
 import { computeBurnoutRiskScore } from './engines/burnout-risk.engine';
+import { computeEmailLoadScore } from './engines/email-load.engine';
 import { DailyAggregate, RawActivityLog, WeeklyScoreResult } from './analytics.types';
 import { differenceInMinutes } from 'date-fns';
 
@@ -84,6 +85,8 @@ export class AnalyticsService {
     const calendarLogs = logs.filter((l) => l.source === 'google_calendar');
     const slackLogs = logs.filter((l) => l.source === 'slack');
     const jiraLogs = logs.filter((l) => l.source === 'jira');
+    const gmailLogs = logs.filter((l) => l.source === 'gmail');
+    const githubLogs = logs.filter((l) => l.source === 'github');
 
     // Calendar metrics
     const meetings = calendarLogs.filter((l) => l.event_type === 'meeting');
@@ -140,6 +143,41 @@ export class AnalyticsService {
     const afterHoursEvents = logs.filter((l) => l.is_after_hours).length;
     const weekendEvents = logs.filter((l) => l.is_weekend).length;
 
+    // Gmail email metrics
+    const emailsSent = gmailLogs.filter((l) => l.event_type === 'email_sent').length;
+    const emailsReceived = gmailLogs.filter((l) => l.event_type === 'email_received').length;
+    const afterHoursEmails = gmailLogs.filter((l) => l.is_after_hours && l.event_type === 'email_sent').length;
+
+    // Average email response time (minutes) — thread-based
+    let avgEmailResponseMin: number | null = null;
+    const sentByThread = new Map<string, number>();
+    const receivedByThread = new Map<string, number>();
+    for (const log of gmailLogs) {
+      const threadId = log.metadata?.threadId;
+      if (!threadId) continue;
+      const ts = log.occurred_at.getTime();
+      if (log.event_type === 'email_sent') {
+        if (!sentByThread.has(threadId)) sentByThread.set(threadId, ts);
+      } else {
+        if (!receivedByThread.has(threadId)) receivedByThread.set(threadId, ts);
+      }
+    }
+    const responseTimes: number[] = [];
+    for (const [threadId, receivedTs] of receivedByThread.entries()) {
+      const sentTs = sentByThread.get(threadId);
+      if (sentTs && sentTs > receivedTs) {
+        responseTimes.push(Math.round((sentTs - receivedTs) / 60000));
+      }
+    }
+    if (responseTimes.length > 0) {
+      avgEmailResponseMin = Math.round(responseTimes.reduce((a, b) => a + b, 0) / responseTimes.length);
+    }
+
+    // GitHub metrics
+    const githubCommits = githubLogs.filter((l) => l.event_type === 'commit_pushed').length;
+    const githubPrReviews = githubLogs.filter((l) => l.event_type === 'pr_reviewed').length;
+    const githubPrsCreated = githubLogs.filter((l) => l.event_type === 'pr_created').length;
+
     // Context switches (within this day)
     let contextSwitches = 0;
     const dayLogs = [...logs].sort((a, b) => a.occurred_at.getTime() - b.occurred_at.getTime());
@@ -156,8 +194,10 @@ export class AnalyticsService {
       `INSERT INTO daily_aggregates
          (organization_id, user_id, date, total_meeting_minutes, meeting_count,
           back_to_back_meetings, solo_focus_minutes, slack_messages_sent, slack_channels_active,
-          after_hours_events, weekend_events, jira_transitions, context_switches)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+          after_hours_events, weekend_events, jira_transitions, context_switches,
+          emails_sent, emails_received, after_hours_emails, avg_email_response_min,
+          github_commits, github_pr_reviews, github_prs_created)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
        ON CONFLICT (organization_id, user_id, date) DO UPDATE SET
          total_meeting_minutes = EXCLUDED.total_meeting_minutes,
          meeting_count = EXCLUDED.meeting_count,
@@ -169,6 +209,13 @@ export class AnalyticsService {
          weekend_events = EXCLUDED.weekend_events,
          jira_transitions = EXCLUDED.jira_transitions,
          context_switches = EXCLUDED.context_switches,
+         emails_sent = EXCLUDED.emails_sent,
+         emails_received = EXCLUDED.emails_received,
+         after_hours_emails = EXCLUDED.after_hours_emails,
+         avg_email_response_min = EXCLUDED.avg_email_response_min,
+         github_commits = EXCLUDED.github_commits,
+         github_pr_reviews = EXCLUDED.github_pr_reviews,
+         github_prs_created = EXCLUDED.github_prs_created,
          updated_at = NOW()`,
       [
         orgId, userId, dateStr,
@@ -176,6 +223,8 @@ export class AnalyticsService {
         slackLogs.length, slackChannels,
         afterHoursEvents, weekendEvents,
         jiraLogs.length, contextSwitches,
+        emailsSent, emailsReceived, afterHoursEmails, avgEmailResponseMin,
+        githubCommits, githubPrReviews, githubPrsCreated,
       ],
     );
   }
@@ -218,14 +267,44 @@ export class AnalyticsService {
     const { score: slackInterruptScore, breakdown: siBreakdown } = computeSlackInterruptScore(aggregates);
     const { score: focusScore, breakdown: ftBreakdown } = computeFocusScore(aggregates);
     const { score: afterHoursScore, breakdown: ahBreakdown } = computeAfterHoursScore(aggregates);
+    const { score: emailLoadScore, breakdown: elBreakdown } = computeEmailLoadScore(aggregates);
 
-    // Get previous week score for delta calculation
-    const prevWeekResult = await this.db.query(
-      `SELECT burnout_risk_score FROM weekly_scores
-       WHERE user_id = $1 AND week_start = $2`,
-      [userId, format(subWeeks(weekStart, 1), 'yyyy-MM-dd')],
+    // 1:1 meeting count: 2-person meetings ≥ 30 min this week
+    const oneOnOneCount = logs.filter(
+      (l) => l.source === 'google_calendar' &&
+             l.event_type === 'meeting' &&
+             l.participants_count === 2 &&
+             (l.duration_seconds || 0) >= 1800,
+    ).length;
+
+    // Get previous 4 weeks of scores for delta + trajectory calculation
+    const prevScoresResult = await this.db.query(
+      `SELECT week_start, burnout_risk_score FROM weekly_scores
+       WHERE user_id = $1 AND week_start < $2
+       ORDER BY week_start DESC LIMIT 4`,
+      [userId, weekStartStr],
     );
-    const previousWeekBurnoutScore = prevWeekResult.rows[0]?.burnout_risk_score;
+    const prevScores = prevScoresResult.rows;
+    const previousWeekBurnoutScore = prevScores[0]?.burnout_risk_score;
+
+    // Burnout trajectory: linear slope over last 3+ weeks (including current)
+    let trajectory: 'escalating' | 'improving' | 'stable' = 'stable';
+    let slopePerWeek = 0;
+    let projectedIn2Weeks: number | null = null;
+    if (prevScores.length >= 2) {
+      const points = prevScores.slice(0, 3).reverse().map((r, i) => ({
+        x: i, y: parseFloat(r.burnout_risk_score),
+      }));
+      const n = points.length;
+      const sumX = points.reduce((s, p) => s + p.x, 0);
+      const sumY = points.reduce((s, p) => s + p.y, 0);
+      const sumXY = points.reduce((s, p) => s + p.x * p.y, 0);
+      const sumX2 = points.reduce((s, p) => s + p.x * p.x, 0);
+      slopePerWeek = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX);
+      if (slopePerWeek > 3) trajectory = 'escalating';
+      else if (slopePerWeek < -3) trajectory = 'improving';
+      projectedIn2Weeks = Math.min(100, Math.max(0, Math.round(parseFloat(previousWeekBurnoutScore || '0') + slopePerWeek * 2)));
+    }
 
     const burnoutResult = computeBurnoutRiskScore({
       meetingLoadScore,
@@ -233,6 +312,7 @@ export class AnalyticsService {
       slackInterruptScore,
       focusScore,
       afterHoursScore,
+      emailLoadScore,
       previousWeekBurnoutScore: previousWeekBurnoutScore
         ? parseFloat(previousWeekBurnoutScore)
         : undefined,
@@ -244,8 +324,13 @@ export class AnalyticsService {
       slackInterrupt: siBreakdown,
       focusTime: ftBreakdown,
       afterHours: ahBreakdown,
+      emailLoad: elBreakdown,
       burnout: burnoutResult.weightedComponents,
       riskFlags: burnoutResult.riskFlags,
+      oneOnOneCount,
+      trajectory,
+      slopePerWeek: Math.round(slopePerWeek * 10) / 10,
+      projectedIn2Weeks,
     };
 
     // Persist scores
@@ -522,19 +607,19 @@ export class AnalyticsService {
 
 function generateTeamInsights(weekData: any): any[] {
   const insights: any[] = [];
-  const burnoutRisk = parseFloat(weekData.avg_burnout_risk);
-  const meetingLoad = parseFloat(weekData.avg_meeting_load);
-  const focusScore = parseFloat(weekData.avg_focus);
-  const afterHours = parseFloat(weekData.avg_slack_interrupt);
-  const membersAtRisk = parseInt(weekData.members_at_risk);
-  const totalMembers = parseInt(weekData.total_members);
+  const burnoutRisk = parseFloat(weekData.avg_burnout_risk) || 0;
+  const meetingLoad = parseFloat(weekData.avg_meeting_load) || 0;
+  const focusScore = parseFloat(weekData.avg_focus) || 0;
+  const membersAtRisk = parseInt(weekData.members_at_risk) || 0;
+  const totalMembers = parseInt(weekData.total_members) || 0;
+  const ceremonyOverheadPct = weekData.ceremony_overhead_pct || 0;
 
   if (membersAtRisk > 0) {
     insights.push({
       type: 'members_at_risk',
       priority: 'high',
       text: `${membersAtRisk} of ${totalMembers} team members show elevated burnout risk signals`,
-      recommendation: 'Consider 1:1 check-ins to understand workload distribution',
+      recommendation: 'Schedule 1:1 check-ins to understand workload and wellbeing',
     });
   }
 
@@ -553,6 +638,24 @@ function generateTeamInsights(weekData: any): any[] {
       priority: 'medium',
       text: `Team has insufficient deep work time this week`,
       recommendation: 'Protect morning blocks (9am–12pm) as focus time across the team',
+    });
+  }
+
+  if (ceremonyOverheadPct > 20) {
+    insights.push({
+      type: 'ceremony_overhead',
+      priority: 'medium',
+      text: `${Math.round(ceremonyOverheadPct)}% of team work time spent in recurring meetings`,
+      recommendation: 'Review standup, retro, and planning durations — even 15 min savings per ceremony compounds',
+    });
+  }
+
+  if (burnoutRisk > 60 && focusScore < 35) {
+    insights.push({
+      type: 'focus_burnout_combo',
+      priority: 'high',
+      text: `High burnout risk combined with low focus time — high-risk combination`,
+      recommendation: 'Block protected focus time on calendars this week and defer non-urgent meetings',
     });
   }
 

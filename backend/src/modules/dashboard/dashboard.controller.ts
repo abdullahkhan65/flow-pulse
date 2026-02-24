@@ -56,6 +56,17 @@ export class DashboardController {
     return this.dashboardService.getTeamMembersOverview(user.organizationId);
   }
 
+  @Get('team/calendar')
+  @Roles('manager')
+  @ApiOperation({ summary: 'Get team busyness heatmap for a 7-day window' })
+  getTeamCalendar(
+    @CurrentUser() user: JwtPayload,
+    @Query('start') start?: string,
+  ) {
+    const startDate = start || new Date().toISOString().split('T')[0];
+    return this.dashboardService.getTeamCalendar(user.organizationId, startDate);
+  }
+
   @Get('team/export')
   @Roles('admin')
   @Header('Content-Type', 'text/csv')

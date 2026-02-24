@@ -46,4 +46,16 @@ export default () => ({
   encryption: {
     key: process.env.ENCRYPTION_KEY || 'dev-key-32-chars-change-in-prod!',
   },
+
+  github: {
+    clientId: process.env.GITHUB_CLIENT_ID,
+    clientSecret: process.env.GITHUB_CLIENT_SECRET,
+    callbackUrl: process.env.GITHUB_CALLBACK_URL,
+  },
+
+  stripe: {
+    secretKey: process.env.STRIPE_SECRET_KEY,
+    webhookSecret: process.env.STRIPE_WEBHOOK_SECRET,
+    priceId: process.env.STRIPE_PRICE_ID,
+  },
 });

@@ -10,10 +10,13 @@ import { UsersModule } from './modules/users/users.module';
 import { GoogleCalendarModule } from './modules/integrations/google-calendar/google-calendar.module';
 import { SlackModule } from './modules/integrations/slack/slack.module';
 import { JiraModule } from './modules/integrations/jira/jira.module';
+import { GmailModule } from './modules/integrations/gmail/gmail.module';
+import { GithubModule } from './modules/integrations/github/github.module';
 import { AnalyticsModule } from './modules/analytics/analytics.module';
 import { JobsModule } from './modules/jobs/jobs.module';
 import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
+import { BillingModule } from './modules/billing/billing.module';
 
 @Module({
   imports: [
@@ -40,10 +43,13 @@ import { NotificationsModule } from './modules/notifications/notifications.modul
     GoogleCalendarModule,
     SlackModule,
     JiraModule,
+    GmailModule,
+    GithubModule,
     AnalyticsModule,
     JobsModule,
     DashboardModule,
     NotificationsModule,
+    BillingModule,
   ],
   providers: [
     {
