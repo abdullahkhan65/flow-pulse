@@ -153,7 +153,7 @@ export default function TeamMembersPage() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin w-8 h-8 border-2 border-brand-500 border-t-transparent rounded-full" />
+        <div className="animate-spin w-8 h-8 border-2 border-teal-700 border-t-transparent rounded-full" />
       </div>
     );
   }
@@ -222,7 +222,7 @@ export default function TeamMembersPage() {
                     {member.avatar_url ? (
                       <img src={member.avatar_url} alt={member.name} className="w-8 h-8 rounded-full" />
                     ) : (
-                      <div className="w-8 h-8 rounded-full bg-brand-100 flex items-center justify-center text-brand-600 text-sm font-medium">
+                      <div className="w-8 h-8 rounded-full bg-teal-100 flex items-center justify-center text-teal-700 text-sm font-medium">
                         {member.name?.[0] || member.email[0]}
                       </div>
                     )}

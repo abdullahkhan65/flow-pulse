@@ -5,6 +5,7 @@ import { Suspense, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Shield, Sparkles } from 'lucide-react';
 import { setToken } from '@/lib/api';
+import { FlowPulseLogo } from '@/components/brand-logo';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api/v1';
 
@@ -38,12 +39,8 @@ function LoginContent() {
         </div>
 
         <div className="card reveal-up p-7 md:p-8" style={{ animationDelay: '0.08s' }}>
-          <div className="mb-6 flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-teal-700 to-cyan-500 text-xs font-bold text-white">FP</div>
-            <div>
-              <p className="text-sm font-semibold [font-family:var(--font-heading)]">FlowPulse</p>
-              <p className="text-xs text-slate-500">Privacy-first team analytics</p>
-            </div>
+          <div className="mb-6">
+            <FlowPulseLogo />
           </div>
 
           <a

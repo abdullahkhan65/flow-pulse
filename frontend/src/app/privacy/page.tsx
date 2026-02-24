@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import { FlowPulseLogo } from '@/components/brand-logo';
 
 export const metadata: Metadata = {
   title: 'Privacy & Data Transparency — FlowPulse',
@@ -18,9 +19,8 @@ export default function PrivacyPage() {
     <div className="min-h-screen pb-12">
       <header className="sticky top-0 z-20 border-b border-white/70 bg-white/70 backdrop-blur-xl">
         <div className="mx-auto flex h-16 w-full max-w-5xl items-center justify-between px-5 md:px-8">
-          <Link href="/" className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-teal-700 to-cyan-500 text-xs font-bold text-white">FP</div>
-            <span className="text-sm font-semibold [font-family:var(--font-heading)]">FlowPulse</span>
+          <Link href="/" aria-label="FlowPulse home">
+            <FlowPulseLogo />
           </Link>
           <Link href="/login" className="btn-primary px-4 py-2 text-xs">Get Started</Link>
         </div>

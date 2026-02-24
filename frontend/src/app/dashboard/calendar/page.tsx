@@ -114,7 +114,7 @@ export default function TeamCalendarPage() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin w-8 h-8 border-2 border-brand-500 border-t-transparent rounded-full" />
+        <div className="animate-spin w-8 h-8 border-2 border-teal-700 border-t-transparent rounded-full" />
       </div>
     );
   }

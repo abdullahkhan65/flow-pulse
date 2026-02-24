@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { ArrowRight, CalendarRange, ShieldCheck, Sparkles, Zap } from 'lucide-react';
+import { FlowPulseLogo } from '@/components/brand-logo';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api/v1';
 
@@ -34,9 +35,8 @@ export default function LandingPage() {
     <div className="min-h-screen pb-14">
       <header className="sticky top-0 z-30 border-b border-white/60 bg-white/70 backdrop-blur-xl">
         <div className="mx-auto flex h-16 w-full max-w-6xl items-center justify-between px-5 md:px-8">
-          <Link href="/" className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-teal-700 to-cyan-500 text-xs font-bold text-white">FP</div>
-            <span className="text-sm font-semibold [font-family:var(--font-heading)]">FlowPulse</span>
+          <Link href="/" aria-label="FlowPulse home">
+            <FlowPulseLogo />
           </Link>
           <div className="flex items-center gap-2">
             <Link href="/privacy" className="btn-secondary px-3 py-2 text-xs">Privacy</Link>

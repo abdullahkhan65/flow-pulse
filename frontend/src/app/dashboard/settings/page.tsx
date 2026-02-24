@@ -4,8 +4,40 @@ import { useState } from 'react';
 import useSWR from 'swr';
 import { api, Integration, Organization, BillingStatus, User } from '@/lib/api';
 import clsx from 'clsx';
-import { CheckCircle, XCircle, Download, Trash2, CreditCard, Zap } from 'lucide-react';
+import { CheckCircle, XCircle, Download, Trash2, CreditCard, Zap, CalendarDays, MessageSquare, BriefcaseBusiness, Github } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
+
+function IntegrationGlyph({ type }: { type: string }) {
+  const map: Record<string, { label: string; className: string; icon: React.ReactNode }> = {
+    google_calendar: {
+      label: 'GC',
+      className: 'border-sky-200 bg-sky-50 text-sky-700',
+      icon: <CalendarDays className="h-4 w-4" />,
+    },
+    slack: {
+      label: 'SL',
+      className: 'border-fuchsia-200 bg-fuchsia-50 text-fuchsia-700',
+      icon: <MessageSquare className="h-4 w-4" />,
+    },
+    jira: {
+      label: 'JR',
+      className: 'border-indigo-200 bg-indigo-50 text-indigo-700',
+      icon: <BriefcaseBusiness className="h-4 w-4" />,
+    },
+    github: {
+      label: 'GH',
+      className: 'border-slate-200 bg-slate-50 text-slate-700',
+      icon: <Github className="h-4 w-4" />,
+    },
+  };
+
+  const target = map[type] || map.github;
+  return (
+    <div className={clsx('flex h-10 w-10 items-center justify-center rounded-lg border', target.className)} title={target.label}>
+      {target.icon}
+    </div>
+  );
+}
 
 function IntegrationCard({
   type, label, description, icon, integration, onConnect,
@@ -164,7 +196,7 @@ export default function SettingsPage() {
             type="google_calendar"
             label="Google Calendar"
             description="Meeting counts, durations, participant counts. No titles or attendees."
-            icon={<span className="text-xl">📅</span>}
+            icon={<IntegrationGlyph type="google_calendar" />}
             integration={getIntegration('google_calendar')}
             onConnect={() => handleConnect('google_calendar')}
           />
@@ -172,7 +204,7 @@ export default function SettingsPage() {
             type="slack"
             label="Slack"
             description="Message timestamps and channel IDs only. No message content whatsoever."
-            icon={<span className="text-xl">💬</span>}
+            icon={<IntegrationGlyph type="slack" />}
             integration={getIntegration('slack')}
             onConnect={() => handleConnect('slack')}
           />
@@ -180,7 +212,7 @@ export default function SettingsPage() {
             type="jira"
             label="Jira"
             description="Status transitions and update timestamps. No ticket titles or descriptions."
-            icon={<span className="text-xl">🎯</span>}
+            icon={<IntegrationGlyph type="jira" />}
             integration={getIntegration('jira')}
             onConnect={() => handleConnect('jira')}
           />
@@ -188,7 +220,7 @@ export default function SettingsPage() {
             type="github"
             label="GitHub"
             description="Commit counts, PR events, and review activity. No repo names, PR titles, or code content."
-            icon={<span className="text-xl">🐙</span>}
+            icon={<IntegrationGlyph type="github" />}
             integration={getIntegration('github')}
             onConnect={() => handleConnect('github')}
           />

@@ -15,6 +15,14 @@ const syncPhases = [
   'Computing first scores...',
 ];
 
+function IntegrationBadge({ label, tone }: { label: string; tone: string }) {
+  return (
+    <div className={clsx('flex h-10 w-10 items-center justify-center rounded-lg border text-xs font-semibold', tone)}>
+      {label}
+    </div>
+  );
+}
+
 function SyncProgress({ onDone }: { onDone: () => void }) {
   const [phase, setPhase] = useState(0);
 
@@ -144,14 +152,14 @@ export default function OnboardingPage() {
 
               <div className="mt-6 space-y-3">
                 {[
-                  { type: 'google_calendar', label: 'Google Calendar', detail: 'Meeting load and focus windows', required: true },
-                  { type: 'slack', label: 'Slack', detail: 'Interruption and after-hours patterns', required: false },
-                  { type: 'jira', label: 'Jira', detail: 'Context-switch and workflow friction', required: false },
+                  { type: 'google_calendar', label: 'Google Calendar', detail: 'Meeting load and focus windows', required: true, short: 'GC', tone: 'border-sky-200 bg-sky-50 text-sky-700' },
+                  { type: 'slack', label: 'Slack', detail: 'Interruption and after-hours patterns', required: false, short: 'SL', tone: 'border-fuchsia-200 bg-fuchsia-50 text-fuchsia-700' },
+                  { type: 'jira', label: 'Jira', detail: 'Context-switch and workflow friction', required: false, short: 'JR', tone: 'border-indigo-200 bg-indigo-50 text-indigo-700' },
                 ].map((it) => {
                   const isConnected = connected.includes(it.type);
                   return (
                     <div key={it.type} className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white/80 p-4">
-                      <div className="h-10 w-10 rounded-lg bg-slate-100" />
+                      <IntegrationBadge label={it.short} tone={it.tone} />
                       <div className="flex-1">
                         <p className="text-sm font-semibold text-slate-900">{it.label} {it.required && <span className="ml-1 rounded-full bg-slate-100 px-2 py-0.5 text-[10px]">Required</span>}</p>
                         <p className="text-xs text-slate-500">{it.detail}</p>

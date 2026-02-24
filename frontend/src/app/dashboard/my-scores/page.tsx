@@ -200,10 +200,10 @@ function SyncingState({ onDone }: { onDone: (data: PreviewData) => void }) {
   return (
     <div className="card flex flex-col items-center p-12 text-center">
       <div className="relative w-16 h-16 mb-6">
-        <div className="w-16 h-16 border-4 border-brand-100 rounded-full" />
-        <div className="absolute inset-0 w-16 h-16 border-4 border-brand-500 border-t-transparent rounded-full animate-spin" />
+        <div className="w-16 h-16 border-4 border-teal-100 rounded-full" />
+        <div className="absolute inset-0 w-16 h-16 border-4 border-teal-700 border-t-transparent rounded-full animate-spin" />
         <div className="absolute inset-0 flex items-center justify-center">
-          <Calendar className="w-6 h-6 text-brand-500" />
+          <Calendar className="w-6 h-6 text-teal-700" />
         </div>
       </div>
       <h3 className="mb-2 font-semibold text-slate-900 [font-family:var(--font-heading)]">Syncing your data...</h3>
@@ -214,7 +214,7 @@ function SyncingState({ onDone }: { onDone: (data: PreviewData) => void }) {
             key={i}
             className={clsx(
               'h-1 rounded-full transition-all duration-500',
-              i <= phase ? 'w-8 bg-brand-500' : 'w-2 bg-slate-200',
+              i <= phase ? 'w-8 bg-teal-700' : 'w-2 bg-slate-200',
             )}
           />
         ))}
@@ -305,7 +305,7 @@ export default function MyScoresPage() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin w-8 h-8 border-2 border-brand-500 border-t-transparent rounded-full" />
+        <div className="animate-spin w-8 h-8 border-2 border-teal-700 border-t-transparent rounded-full" />
       </div>
     );
   }
@@ -369,7 +369,7 @@ export default function MyScoresPage() {
             <div className="space-y-4">
               {/* Confidence / data collection progress banner */}
               <div className="card p-4 flex items-start gap-3 border-cyan-200 bg-cyan-50">
-                <Info className="w-4 h-4 text-brand-500 mt-0.5 flex-shrink-0" />
+                <Info className="w-4 h-4 text-teal-700 mt-0.5 flex-shrink-0" />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
                     <p className="text-sm font-medium text-cyan-900">

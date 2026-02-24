@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { Bell, Calendar, LayoutDashboard, LogOut, Settings, Users } from 'lucide-react';
 import { api, clearToken, User } from '@/lib/api';
+import { FlowPulseLogo } from '@/components/brand-logo';
 
 function NavItem({ href, icon: Icon, label, active }: {
   href: string;
@@ -17,7 +18,7 @@ function NavItem({ href, icon: Icon, label, active }: {
       href={href}
       className={`flex items-center gap-2 rounded-xl px-3 py-2 text-sm transition-all ${
         active
-          ? 'bg-teal-700 text-white shadow-[0_12px_30px_rgba(15,118,110,0.3)]'
+          ? 'bg-gradient-to-r from-teal-700 to-orange-500 text-white shadow-[0_12px_30px_rgba(15,90,84,0.34)]'
           : 'text-slate-600 hover:bg-white hover:text-slate-900'
       }`}
     >
@@ -60,12 +61,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     <div className="min-h-screen px-4 py-4 md:px-6 md:py-6">
       <div className="mx-auto grid w-full max-w-[1320px] gap-4 md:grid-cols-[250px_1fr]">
         <aside className="card flex flex-col p-3 md:p-4">
-          <div className="mb-4 flex items-center gap-2 rounded-xl border border-slate-200/60 bg-white/70 p-3">
-            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-teal-700 to-cyan-500 text-xs font-bold text-white">FP</div>
-            <div className="min-w-0">
-              <p className="truncate text-sm font-semibold [font-family:var(--font-heading)]">FlowPulse</p>
-              <p className="truncate text-xs text-slate-500">{user?.organization_name || 'Workspace'}</p>
-            </div>
+          <div className="mb-4 rounded-2xl border border-white/65 bg-gradient-to-br from-white/90 to-white/70 p-3">
+            <FlowPulseLogo />
+            <p className="mt-2 truncate text-xs text-slate-500">{user?.organization_name || 'Workspace'}</p>
           </div>
 
           <nav className="grid gap-1">
@@ -96,7 +94,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </div>
         </aside>
 
-        <main className="card min-h-[80vh] overflow-hidden p-4 md:p-7">{children}</main>
+        <main className="card min-h-[80vh] overflow-hidden bg-gradient-to-b from-white/80 to-white/70 p-4 md:p-7">{children}</main>
       </div>
     </div>
   );
