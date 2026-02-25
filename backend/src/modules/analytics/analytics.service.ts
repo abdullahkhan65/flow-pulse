@@ -9,6 +9,7 @@ import { computeFocusScore } from './engines/focus-time.engine';
 import { computeAfterHoursScore } from './engines/after-hours.engine';
 import { computeBurnoutRiskScore } from './engines/burnout-risk.engine';
 import { computeEmailLoadScore } from './engines/email-load.engine';
+import { computeGithubLoadScore } from './engines/github-load.engine';
 import { DailyAggregate, RawActivityLog, WeeklyScoreResult } from './analytics.types';
 import { differenceInMinutes } from 'date-fns';
 
@@ -22,6 +23,7 @@ export interface TodaySnapshot {
   backToBackToday: number;
   emailsSentToday: number;
   emailsReceivedToday: number;
+  githubEventsToday: number;
 }
 
 export interface PartialScoreResult {
@@ -46,13 +48,23 @@ export interface PartialScoreResult {
     totalEmailsReceived: number;
     afterHoursEmails: number;
     avgEmailResponseMin: number | null;
+    totalGithubCommits: number;
+    totalGithubPrReviews: number;
+    totalGithubPrsCreated: number;
+    githubAfterHoursEvents: number;
   } | null;
+  signalCoverage: {
+    calendar: { connected: boolean; daysWithData: number; totalEvents: number; coveragePct: number };
+    email: { connected: boolean; daysWithData: number; totalEvents: number; coveragePct: number };
+    github: { connected: boolean; daysWithData: number; totalEvents: number; coveragePct: number };
+  };
   partialScores: {
     meetingLoadScore: number;
     contextSwitchScore: number;
     slackInterruptScore: number;
     focusScore: number;
     afterHoursScore: number;
+    githubLoadScore: number;
     burnoutRiskScore: number;
     riskLevel: 'low' | 'moderate' | 'high' | 'critical';
     riskFlags: string[];
@@ -183,6 +195,8 @@ export class AnalyticsService {
     const githubCommits = githubLogs.filter((l) => l.event_type === 'commit_pushed').length;
     const githubPrReviews = githubLogs.filter((l) => l.event_type === 'pr_reviewed').length;
     const githubPrsCreated = githubLogs.filter((l) => l.event_type === 'pr_created').length;
+    const githubAfterHoursEvents = githubLogs.filter((l) => l.is_after_hours).length;
+    const githubWeekendEvents = githubLogs.filter((l) => l.is_weekend).length;
 
     // Context switches (within this day)
     let contextSwitches = 0;
@@ -202,8 +216,8 @@ export class AnalyticsService {
           back_to_back_meetings, solo_focus_minutes, slack_messages_sent, slack_channels_active,
           after_hours_events, weekend_events, jira_transitions, context_switches,
           emails_sent, emails_received, after_hours_emails, avg_email_response_min,
-          github_commits, github_pr_reviews, github_prs_created)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
+          github_commits, github_pr_reviews, github_prs_created, github_after_hours_events, github_weekend_events)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22)
        ON CONFLICT (organization_id, user_id, date) DO UPDATE SET
          total_meeting_minutes = EXCLUDED.total_meeting_minutes,
          meeting_count = EXCLUDED.meeting_count,
@@ -222,6 +236,8 @@ export class AnalyticsService {
          github_commits = EXCLUDED.github_commits,
          github_pr_reviews = EXCLUDED.github_pr_reviews,
          github_prs_created = EXCLUDED.github_prs_created,
+         github_after_hours_events = EXCLUDED.github_after_hours_events,
+         github_weekend_events = EXCLUDED.github_weekend_events,
          updated_at = NOW()`,
       [
         orgId, userId, dateStr,
@@ -230,7 +246,7 @@ export class AnalyticsService {
         afterHoursEvents, weekendEvents,
         jiraLogs.length, contextSwitches,
         emailsSent, emailsReceived, afterHoursEmails, avgEmailResponseMin,
-        githubCommits, githubPrReviews, githubPrsCreated,
+        githubCommits, githubPrReviews, githubPrsCreated, githubAfterHoursEvents, githubWeekendEvents,
       ],
     );
   }
@@ -274,6 +290,7 @@ export class AnalyticsService {
     const { score: focusScore, breakdown: ftBreakdown } = computeFocusScore(aggregates);
     const { score: afterHoursScore, breakdown: ahBreakdown } = computeAfterHoursScore(aggregates);
     const { score: emailLoadScore, breakdown: elBreakdown } = computeEmailLoadScore(aggregates);
+    const { score: githubLoadScore, breakdown: ghBreakdown } = computeGithubLoadScore(aggregates);
 
     // 1:1 meeting count: 2-person meetings ≥ 30 min this week
     const oneOnOneCount = logs.filter(
@@ -319,6 +336,7 @@ export class AnalyticsService {
       focusScore,
       afterHoursScore,
       emailLoadScore,
+      githubLoadScore,
       previousWeekBurnoutScore: previousWeekBurnoutScore
         ? parseFloat(previousWeekBurnoutScore)
         : undefined,
@@ -331,6 +349,7 @@ export class AnalyticsService {
       focusTime: ftBreakdown,
       afterHours: ahBreakdown,
       emailLoad: elBreakdown,
+      githubLoad: { score: githubLoadScore, ...ghBreakdown },
       burnout: burnoutResult.weightedComponents,
       riskFlags: burnoutResult.riskFlags,
       oneOnOneCount,
@@ -447,7 +466,7 @@ export class AnalyticsService {
     const todayStr = format(today, 'yyyy-MM-dd');
     const weekStartStr = format(weekStart, 'yyyy-MM-dd');
 
-    const [aggregatesResult, logsResult, lastSyncResult, firstLogResult] = await Promise.all([
+    const [aggregatesResult, logsResult, lastSyncResult, firstLogResult, integrationsResult] = await Promise.all([
       this.db.query<DailyAggregate>(
         `SELECT * FROM daily_aggregates
          WHERE user_id = $1 AND date BETWEEN $2 AND $3
@@ -469,6 +488,10 @@ export class AnalyticsService {
         `SELECT MIN(occurred_at) as first_log FROM raw_activity_logs WHERE user_id = $1`,
         [userId],
       ),
+      this.db.query(
+        `SELECT type, status FROM integrations WHERE user_id = $1`,
+        [userId],
+      ),
     ]);
 
     const aggregates = aggregatesResult.rows.map((r) => ({ ...r, date: new Date(r.date) }));
@@ -480,6 +503,21 @@ export class AnalyticsService {
 
     const daysCollected = aggregates.length;
     const DAYS_NEEDED = 7;
+    const connectedTypes = new Set(
+      integrationsResult.rows.filter((r) => r.status === 'active').map((r) => r.type),
+    );
+    const buildCoverage = (source: 'google_calendar' | 'gmail' | 'github', connected: boolean) => {
+      const sourceLogs = logs.filter((l) => l.source === source);
+      const daysWithData = new Set(sourceLogs.map((l) => format(l.occurred_at, 'yyyy-MM-dd'))).size;
+      const coveragePct = daysCollected > 0 ? Math.round((daysWithData / daysCollected) * 100) : 0;
+      return { connected, daysWithData, totalEvents: sourceLogs.length, coveragePct };
+    };
+    const signalCoverage = {
+      calendar: buildCoverage('google_calendar', connectedTypes.has('google_calendar')),
+      email: buildCoverage('gmail', connectedTypes.has('google_calendar')),
+      github: buildCoverage('github', connectedTypes.has('github')),
+    };
+
     const confidence: PartialScoreResult['confidence'] =
       daysCollected === 0 ? 'none' :
       daysCollected <= 2 ? 'low' :
@@ -498,6 +536,7 @@ export class AnalyticsService {
         lastSyncedAt,
         todaySnapshot,
         thisWeekSoFar: null,
+        signalCoverage,
         partialScores: null,
       };
     }
@@ -507,8 +546,11 @@ export class AnalyticsService {
     const { score: slackInterruptScore } = computeSlackInterruptScore(aggregates);
     const { score: focusScore } = computeFocusScore(aggregates);
     const { score: afterHoursScore } = computeAfterHoursScore(aggregates);
+    const { score: emailLoadScore } = computeEmailLoadScore(aggregates);
+    const { score: githubLoadScore } = computeGithubLoadScore(aggregates);
     const burnoutResult = computeBurnoutRiskScore({
       meetingLoadScore, contextSwitchScore, slackInterruptScore, focusScore, afterHoursScore,
+      emailLoadScore, githubLoadScore,
     });
 
     const totalMeetings = aggregates.reduce((s, d) => s + d.meeting_count, 0);
@@ -517,6 +559,10 @@ export class AnalyticsService {
     const totalEmailsSent = aggregates.reduce((s, d) => s + (d.emails_sent || 0), 0);
     const totalEmailsReceived = aggregates.reduce((s, d) => s + (d.emails_received || 0), 0);
     const totalAfterHoursEmails = aggregates.reduce((s, d) => s + (d.after_hours_emails || 0), 0);
+    const totalGithubCommits = aggregates.reduce((s, d) => s + (d.github_commits || 0), 0);
+    const totalGithubPrReviews = aggregates.reduce((s, d) => s + (d.github_pr_reviews || 0), 0);
+    const totalGithubPrsCreated = aggregates.reduce((s, d) => s + (d.github_prs_created || 0), 0);
+    const githubAfterHoursEvents = aggregates.reduce((s, d) => s + (d.github_after_hours_events || 0), 0);
     const responseMins = aggregates.map((d) => d.avg_email_response_min).filter((v) => v != null) as number[];
     const avgEmailResponseMin = responseMins.length > 0
       ? Math.round(responseMins.reduce((a, b) => a + b, 0) / responseMins.length)
@@ -531,6 +577,7 @@ export class AnalyticsService {
       dataFrom,
       lastSyncedAt,
       todaySnapshot,
+      signalCoverage,
       thisWeekSoFar: {
         totalMeetings,
         totalMeetingMinutes,
@@ -544,6 +591,10 @@ export class AnalyticsService {
         totalEmailsReceived,
         afterHoursEmails: totalAfterHoursEmails,
         avgEmailResponseMin,
+        totalGithubCommits,
+        totalGithubPrReviews,
+        totalGithubPrsCreated,
+        githubAfterHoursEvents,
       },
       partialScores: {
         meetingLoadScore,
@@ -551,6 +602,7 @@ export class AnalyticsService {
         slackInterruptScore,
         focusScore,
         afterHoursScore,
+        githubLoadScore,
         burnoutRiskScore: burnoutResult.burnoutRiskScore,
         riskLevel: burnoutResult.riskLevel,
         riskFlags: burnoutResult.riskFlags,
@@ -575,6 +627,7 @@ export class AnalyticsService {
       backToBackToday: r.back_to_back_meetings || 0,
       emailsSentToday: r.emails_sent || 0,
       emailsReceivedToday: r.emails_received || 0,
+      githubEventsToday: (r.github_commits || 0) + (r.github_pr_reviews || 0) + (r.github_prs_created || 0),
     };
   }
 
@@ -618,6 +671,55 @@ export class AnalyticsService {
         message: `Meeting load increased sharply — consider reviewing recurring meetings`,
         delta: meetingDelta,
       });
+    }
+
+    const weekStartStr = format(weekStart, 'yyyy-MM-dd');
+    const prevWeekStartStr = format(subWeeks(weekStart, 1), 'yyyy-MM-dd');
+    const githubSpikeResult = await this.db.query(
+      `WITH curr AS (
+         SELECT COALESCE(SUM(github_commits + github_pr_reviews + github_prs_created), 0) AS github_events,
+                COALESCE(SUM(github_after_hours_events), 0) AS github_after_hours
+         FROM daily_aggregates da
+         JOIN users u ON u.id = da.user_id
+         WHERE u.organization_id = $1
+           AND da.date BETWEEN $2::date AND ($2::date + INTERVAL '6 days')
+       ),
+       prevw AS (
+         SELECT COALESCE(SUM(github_commits + github_pr_reviews + github_prs_created), 0) AS github_events,
+                COALESCE(SUM(github_after_hours_events), 0) AS github_after_hours
+         FROM daily_aggregates da
+         JOIN users u ON u.id = da.user_id
+         WHERE u.organization_id = $1
+           AND da.date BETWEEN $3::date AND ($3::date + INTERVAL '6 days')
+       )
+       SELECT
+         curr.github_events::int AS curr_events,
+         prevw.github_events::int AS prev_events,
+         curr.github_after_hours::int AS curr_after_hours,
+         prevw.github_after_hours::int AS prev_after_hours
+       FROM curr, prevw`,
+      [orgId, weekStartStr, prevWeekStartStr],
+    );
+
+    const g = githubSpikeResult.rows[0];
+    if (g) {
+      const eventsDelta = (g.curr_events || 0) - (g.prev_events || 0);
+      const offHoursDelta = (g.curr_after_hours || 0) - (g.prev_after_hours || 0);
+      if (offHoursDelta >= 20 || (eventsDelta >= 60 && offHoursDelta >= 10)) {
+        anomalies.push({
+          type: 'github_after_hours_spike',
+          severity: offHoursDelta >= 35 ? 'critical' : 'warning',
+          message: `GitHub after-hours activity spiked by ${offHoursDelta} events week-over-week`,
+          delta: offHoursDelta,
+        });
+      } else if (eventsDelta >= 80) {
+        anomalies.push({
+          type: 'github_volume_spike',
+          severity: 'warning',
+          message: `GitHub activity volume increased sharply by ${eventsDelta} events this week`,
+          delta: eventsDelta,
+        });
+      }
     }
 
     return anomalies;

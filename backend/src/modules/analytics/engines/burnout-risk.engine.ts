@@ -1,16 +1,17 @@
 /**
  * Burnout Risk Engine — the core product insight
  *
- * A weighted composite of 6 signals (0–100, higher = higher burnout risk).
+ * A weighted composite of 7 signals (0–100, higher = higher burnout risk).
  * This is NOT a medical diagnosis. It's an operational signal for team leads.
  *
  * Weight rationale:
- *   - After-hours (25%): Strongest predictor of unsustainable work patterns
- *   - Meeting load (20%): Excessive meetings drain cognitive energy
- *   - Focus deprivation (20%): Inability to do deep work = constant reactive mode
- *   - Email load (15%): After-hours emails + hyper-responsiveness signals
- *   - Context switching (10%): Fragmented attention increases cognitive load
- *   - Slack interruptions (10%): Supports the above, correlated but secondary
+ *   - After-hours (22%): Strong predictor of unsustainable work patterns
+ *   - Meeting load (18%): Excessive meetings drain cognitive energy
+ *   - Focus deprivation (18%): Inability to do deep work = constant reactive mode
+ *   - Email load (12%): After-hours emails + hyper-responsiveness signals
+ *   - GitHub load (15%): sustained code/review pressure and off-hours coding
+ *   - Context switching (8%): Fragmented attention increases cognitive load
+ *   - Slack interruptions (7%): Correlated signal, less primary
  */
 
 export interface BurnoutScoreInput {
@@ -20,6 +21,7 @@ export interface BurnoutScoreInput {
   focusScore: number;       // Higher = MORE focus (inverted for burnout)
   afterHoursScore: number;
   emailLoadScore?: number;  // New: email-based stress signal (optional for backwards compat)
+  githubLoadScore?: number;
   previousWeekBurnoutScore?: number;
 }
 
@@ -33,29 +35,33 @@ export interface BurnoutScoreResult {
     meetingLoad: number;
     focusDeprivation: number;
     emailLoad: number;
+    githubLoad: number;
     contextSwitching: number;
     slackInterrupt: number;
   };
 }
 
 const WEIGHTS = {
-  afterHours: 0.25,
-  meetingLoad: 0.20,
-  focusDeprivation: 0.20,
-  emailLoad: 0.15,
-  contextSwitching: 0.10,
-  slackInterrupt: 0.10,
+  afterHours: 0.22,
+  meetingLoad: 0.18,
+  focusDeprivation: 0.18,
+  emailLoad: 0.12,
+  githubLoad: 0.15,
+  contextSwitching: 0.08,
+  slackInterrupt: 0.07,
 };
 
 export function computeBurnoutRiskScore(input: BurnoutScoreInput): BurnoutScoreResult {
   const focusDeprivationScore = 100 - input.focusScore;
   const emailLoad = input.emailLoadScore ?? 0;
+  const githubLoad = input.githubLoadScore ?? 0;
 
   const weightedComponents = {
     afterHours: input.afterHoursScore * WEIGHTS.afterHours,
     meetingLoad: input.meetingLoadScore * WEIGHTS.meetingLoad,
     focusDeprivation: focusDeprivationScore * WEIGHTS.focusDeprivation,
     emailLoad: emailLoad * WEIGHTS.emailLoad,
+    githubLoad: githubLoad * WEIGHTS.githubLoad,
     contextSwitching: input.contextSwitchScore * WEIGHTS.contextSwitching,
     slackInterrupt: input.slackInterruptScore * WEIGHTS.slackInterrupt,
   };
@@ -65,6 +71,7 @@ export function computeBurnoutRiskScore(input: BurnoutScoreInput): BurnoutScoreR
     weightedComponents.meetingLoad +
     weightedComponents.focusDeprivation +
     weightedComponents.emailLoad +
+    weightedComponents.githubLoad +
     weightedComponents.contextSwitching +
     weightedComponents.slackInterrupt;
 
@@ -82,6 +89,7 @@ export function computeBurnoutRiskScore(input: BurnoutScoreInput): BurnoutScoreR
   if (input.meetingLoadScore > 70) riskFlags.push('Heavy meeting load leaving little time for deep work');
   if (focusDeprivationScore > 70) riskFlags.push('Insufficient uninterrupted focus time');
   if (emailLoad > 55) riskFlags.push('High email volume or after-hours email activity');
+  if (githubLoad > 60) riskFlags.push('Sustained GitHub workload or off-hours coding activity');
   if (input.contextSwitchScore > 60) riskFlags.push('High context switching between tools and tasks');
   if (input.slackInterruptScore > 60) riskFlags.push('High Slack messaging volume suggests reactive work mode');
 
@@ -103,6 +111,7 @@ export function computeBurnoutRiskScore(input: BurnoutScoreInput): BurnoutScoreR
       meetingLoad: Math.round(weightedComponents.meetingLoad * 10) / 10,
       focusDeprivation: Math.round(weightedComponents.focusDeprivation * 10) / 10,
       emailLoad: Math.round(weightedComponents.emailLoad * 10) / 10,
+      githubLoad: Math.round(weightedComponents.githubLoad * 10) / 10,
       contextSwitching: Math.round(weightedComponents.contextSwitching * 10) / 10,
       slackInterrupt: Math.round(weightedComponents.slackInterrupt * 10) / 10,
     },

@@ -11,7 +11,7 @@ import { format, parseISO } from 'date-fns';
 import clsx from 'clsx';
 import {
   RefreshCw, Info, Clock, Calendar, MessageSquare, Zap,
-  Moon, AlertTriangle, Mail,
+  Moon, AlertTriangle, Mail, Github,
 } from 'lucide-react';
 
 // ─── Sub-components ──────────────────────────────────────────────────────────
@@ -103,6 +103,15 @@ function TodayCard({ snapshot }: { snapshot: TodaySnapshot }) {
       bg: 'bg-indigo-50',
       alert: false,
     },
+    {
+      icon: Github,
+      label: 'GitHub events',
+      value: snapshot.githubEventsToday,
+      sub: 'commits + PR activity',
+      color: 'text-slate-700',
+      bg: 'bg-slate-100',
+      alert: snapshot.githubEventsToday > 25,
+    },
   ];
 
   return (
@@ -151,6 +160,11 @@ function WeekSoFarCard({ data, daysCollected }: {
             label: 'Avg response time',
             value: data.avgEmailResponseMin != null ? `${data.avgEmailResponseMin}min` : '—',
             sub: data.afterHoursEmails > 0 ? `${data.afterHoursEmails} after-hours` : 'no after-hours emails',
+          },
+          {
+            label: 'GitHub activity',
+            value: data.totalGithubCommits + data.totalGithubPrReviews + data.totalGithubPrsCreated,
+            sub: `${data.totalGithubPrReviews} reviews · ${data.githubAfterHoursEvents} after-hours`,
           },
         ].map((item) => (
           <div key={item.label}>
@@ -272,6 +286,33 @@ function ScoreCard({ label, score, description, color }: {
   );
 }
 
+function SignalCoverageCard({ coverage }: { coverage: PreviewData['signalCoverage'] }) {
+  const chips = [
+    { key: 'calendar', label: 'Calendar', data: coverage.calendar, tone: 'bg-sky-50 text-sky-700 border-sky-200' },
+    { key: 'email', label: 'Email', data: coverage.email, tone: 'bg-indigo-50 text-indigo-700 border-indigo-200' },
+    { key: 'github', label: 'GitHub', data: coverage.github, tone: 'bg-slate-100 text-slate-700 border-slate-200' },
+  ];
+
+  return (
+    <div className="card p-4">
+      <h2 className="text-sm font-semibold text-slate-700 mb-3">Confidence by Signal</h2>
+      <div className="grid md:grid-cols-3 gap-3">
+        {chips.map((chip) => (
+          <div key={chip.key} className={clsx('rounded-xl border p-3', chip.tone)}>
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold">{chip.label}</span>
+              <span className="text-xs">{chip.data.connected ? `${chip.data.coveragePct}%` : 'Not connected'}</span>
+            </div>
+            <p className="mt-2 text-xs opacity-80">
+              {chip.data.totalEvents} events across {chip.data.daysWithData} day{chip.data.daysWithData !== 1 ? 's' : ''}
+            </p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // ─── Main page ───────────────────────────────────────────────────────────────
 
 export default function MyScoresPage() {
@@ -378,6 +419,9 @@ export default function MyScoresPage() {
           {activePreview?.todaySnapshot && (
             <TodayCard snapshot={activePreview.todaySnapshot} />
           )}
+          {activePreview?.signalCoverage && (
+            <SignalCoverageCard coverage={activePreview.signalCoverage} />
+          )}
 
           {/* Partial week view — shown when no completed weekly scores yet */}
           {!hasWeeklyScores && activePreview?.daysCollected !== undefined && (
@@ -472,6 +516,12 @@ export default function MyScoresPage() {
                       description="Activity outside work hours"
                       color={getScoreColor(activePreview.partialScores.afterHoursScore)}
                     />
+                    <PartialScoreCard
+                      label="GitHub Load"
+                      score={activePreview.partialScores.githubLoadScore}
+                      description="Coding and review pressure"
+                      color={getScoreColor(activePreview.partialScores.githubLoadScore)}
+                    />
                   </div>
                 </div>
               )}
@@ -481,13 +531,19 @@ export default function MyScoresPage() {
           {/* Completed weekly scores — shown once we have history */}
           {hasWeeklyScores && latest && (
             <>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <ScoreCard label="Burnout Risk" score={latest.burnout_risk_score} description="Composite health signal — lower is healthier" color={getScoreColor(latest.burnout_risk_score)} />
                 <ScoreCard label="Meeting Load" score={latest.meeting_load_score} description="Time consumed by meetings vs work hours" color={getScoreColor(latest.meeting_load_score)} />
                 <ScoreCard label="Focus Time" score={latest.focus_score} description="Uninterrupted deep-work — higher is better" color={latest.focus_score >= 60 ? '#10B981' : latest.focus_score >= 40 ? '#F59E0B' : '#EF4444'} />
                 <ScoreCard label="Context Switching" score={latest.context_switch_score} description="Switching between tools and tasks" color={getScoreColor(latest.context_switch_score)} />
                 <ScoreCard label="Slack Interrupts" score={latest.slack_interrupt_score} description="Volume and distribution of Slack activity" color={getScoreColor(latest.slack_interrupt_score)} />
                 <ScoreCard label="After Hours" score={latest.after_hours_score} description="Activity outside configured work hours" color={getScoreColor(latest.after_hours_score)} />
+                <ScoreCard
+                  label="GitHub Load"
+                  score={latest.score_breakdown?.githubLoad?.score || 0}
+                  description="Coding/review pressure including off-hours coding"
+                  color={getScoreColor(latest.score_breakdown?.githubLoad?.score || 0)}
+                />
               </div>
 
               {/* 6-week trend chart */}

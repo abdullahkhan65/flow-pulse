@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import useSWR from 'swr';
 import { api, Integration, Organization, BillingStatus, User } from '@/lib/api';
 import clsx from 'clsx';
@@ -115,9 +115,20 @@ export default function SettingsPage() {
   const [consent, setConsent] = useState(true);
   const [deleteConfirm, setDeleteConfirm] = useState(false);
   const [billingLoading, setBillingLoading] = useState<'checkout' | 'portal' | null>(null);
+  const [githubWindow, setGithubWindow] = useState<number>(14);
+  const [githubRepos, setGithubRepos] = useState('');
+  const [githubSettingsSaving, setGithubSettingsSaving] = useState(false);
 
   const getIntegration = (type: string) => integrations?.find((i) => i.type === type);
   const isAdminOrOwner = me?.role === 'owner' || me?.role === 'admin';
+  const githubIntegration = getIntegration('github');
+
+  useEffect(() => {
+    const sync = githubIntegration?.metadata?.githubSync;
+    if (!sync) return;
+    setGithubWindow([7, 14, 30].includes(sync.timeWindowDays) ? sync.timeWindowDays : 14);
+    setGithubRepos(Array.isArray(sync.repoAllowlist) ? sync.repoAllowlist.join('\n') : '');
+  }, [githubIntegration?.metadata]);
 
   const handleConnect = async (type: string) => {
     if (type === 'google_calendar') {
@@ -179,6 +190,23 @@ export default function SettingsPage() {
     await api.updateConsent(newConsent);
   };
 
+  const handleSaveGithubSettings = async () => {
+    const repoAllowlist = githubRepos
+      .split('\n')
+      .map((line) => line.trim().toLowerCase())
+      .filter(Boolean);
+    setGithubSettingsSaving(true);
+    try {
+      await api.updateGithubSettings({
+        timeWindowDays: githubWindow,
+        repoAllowlist,
+      });
+      alert('GitHub sync settings saved.');
+    } finally {
+      setGithubSettingsSaving(false);
+    }
+  };
+
   return (
     <div className="max-w-3xl space-y-8 reveal-up">
       <div className="rounded-2xl border border-slate-200/80 bg-white/70 p-4">
@@ -224,6 +252,47 @@ export default function SettingsPage() {
             integration={getIntegration('github')}
             onConnect={() => handleConnect('github')}
           />
+          {githubIntegration?.status === 'active' && (
+            <div className="card p-4 space-y-3">
+              <div>
+                <h4 className="text-sm font-medium text-slate-900">GitHub Sync Controls</h4>
+                <p className="mt-0.5 text-xs text-slate-500">Limit sync scope to reduce noisy personal/public activity.</p>
+              </div>
+              <div className="grid md:grid-cols-2 gap-3">
+                <label className="text-xs text-slate-600">
+                  Time window
+                  <select
+                    value={githubWindow}
+                    onChange={(e) => setGithubWindow(parseInt(e.target.value, 10))}
+                    className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800"
+                  >
+                    <option value={7}>Last 7 days</option>
+                    <option value={14}>Last 14 days</option>
+                    <option value={30}>Last 30 days</option>
+                  </select>
+                </label>
+                <label className="text-xs text-slate-600">
+                  Repo allowlist (owner/repo, one per line)
+                  <textarea
+                    value={githubRepos}
+                    onChange={(e) => setGithubRepos(e.target.value)}
+                    rows={4}
+                    placeholder={'org/backend\norg/frontend'}
+                    className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800"
+                  />
+                </label>
+              </div>
+              <div className="flex justify-end">
+                <button
+                  onClick={handleSaveGithubSettings}
+                  disabled={githubSettingsSaving}
+                  className="btn-secondary text-xs"
+                >
+                  {githubSettingsSaving ? 'Saving...' : 'Save GitHub Controls'}
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </Section>
 

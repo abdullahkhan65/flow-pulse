@@ -24,6 +24,8 @@ export interface DailyAggregate {
   github_commits: number;
   github_pr_reviews: number;
   github_prs_created: number;
+  github_after_hours_events: number;
+  github_weekend_events: number;
 }
 
 export interface RawActivityLog {

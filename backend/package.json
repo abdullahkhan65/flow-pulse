@@ -13,8 +13,8 @@
     "test": "jest",
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
-    "db:migrate": "node -e \"require('./dist/database/migrate').runMigrations()\"",
-    "db:seed": "node -e \"require('./dist/database/seed').runSeed()\""
+    "db:migrate": "ts-node src/database/migrate.ts",
+    "db:seed": "ts-node src/database/seed.ts"
   },
   "dependencies": {
     "@nestjs/common": "^10.3.0",
