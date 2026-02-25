@@ -157,6 +157,8 @@ export interface TeamMember {
   email: string;
   avatar_url: string;
   timezone: string;
+  is_active: boolean;
+  role: string;
   burnout_risk_score: number;
   meeting_load_score: number;
   focus_score: number;

@@ -31,12 +31,13 @@ export default () => ({
     callbackUrl: process.env.JIRA_CALLBACK_URL,
   },
 
+  mailgun: {
+    apiKey: process.env.MAILGUN_API_KEY,
+    domain: process.env.MAILGUN_DOMAIN,
+  },
+
   email: {
-    host: process.env.SMTP_HOST,
-    port: parseInt(process.env.SMTP_PORT ?? '465', 10) || 465,
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS,
-    from: process.env.EMAIL_FROM || 'noreply@flowpulse.app',
+    from: process.env.EMAIL_FROM || 'FlowPulse <noreply@flowpulse.app>',
   },
 
   redis: {

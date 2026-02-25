@@ -215,7 +215,7 @@ export class DashboardService {
 
     const result = await this.db.query(
       `SELECT
-         u.id, u.name, u.email, u.avatar_url, u.timezone,
+         u.id, u.name, u.email, u.avatar_url, u.timezone, u.is_active, u.role,
          ws.burnout_risk_score, ws.meeting_load_score, ws.focus_score,
          ws.after_hours_score, ws.burnout_risk_delta,
          ws.score_breakdown->'riskFlags' as risk_flags,
@@ -226,10 +226,10 @@ export class DashboardService {
        FROM users u
        LEFT JOIN weekly_scores ws ON ws.user_id = u.id AND ws.week_start = $2
        LEFT JOIN integrations i ON i.user_id = u.id
-       WHERE u.organization_id = $1 AND u.is_active = true
+       WHERE u.organization_id = $1
        GROUP BY u.id, ws.burnout_risk_score, ws.meeting_load_score, ws.focus_score,
                 ws.after_hours_score, ws.burnout_risk_delta, ws.score_breakdown
-       ORDER BY ws.burnout_risk_score DESC NULLS LAST`,
+       ORDER BY u.is_active DESC, ws.burnout_risk_score DESC NULLS LAST`,
       [orgId, latestWeek],
     );
 
