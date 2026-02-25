@@ -29,7 +29,7 @@ CREATE TABLE IF NOT EXISTS organizations (
   updated_at    TIMESTAMPTZ  NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_organizations_slug ON organizations(slug);
+CREATE INDEX IF NOT EXISTS idx_organizations_slug ON organizations(slug);
 
 -- ─── Users ─────────────────────────────────────────────────────────────────────
 
@@ -53,10 +53,10 @@ CREATE TABLE IF NOT EXISTS users (
   UNIQUE(organization_id, email)
 );
 
-CREATE INDEX idx_users_organization_id ON users(organization_id);
-CREATE INDEX idx_users_email ON users(email);
-CREATE INDEX idx_users_google_id ON users(google_id) WHERE google_id IS NOT NULL;
-CREATE INDEX idx_users_slack_id ON users(slack_id) WHERE slack_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_users_organization_id ON users(organization_id);
+CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
+CREATE INDEX IF NOT EXISTS idx_users_google_id ON users(google_id) WHERE google_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_users_slack_id ON users(slack_id) WHERE slack_id IS NOT NULL;
 
 -- ─── Integrations ──────────────────────────────────────────────────────────────
 
@@ -80,9 +80,9 @@ CREATE TABLE IF NOT EXISTS integrations (
   UNIQUE(user_id, type)
 );
 
-CREATE INDEX idx_integrations_organization_id ON integrations(organization_id);
-CREATE INDEX idx_integrations_user_id ON integrations(user_id);
-CREATE INDEX idx_integrations_type_status ON integrations(type, status);
+CREATE INDEX IF NOT EXISTS idx_integrations_organization_id ON integrations(organization_id);
+CREATE INDEX IF NOT EXISTS idx_integrations_user_id ON integrations(user_id);
+CREATE INDEX IF NOT EXISTS idx_integrations_type_status ON integrations(type, status);
 
 -- ─── Raw Activity Logs — source of truth, metadata only ───────────────────────
 
@@ -104,9 +104,9 @@ CREATE TABLE IF NOT EXISTS raw_activity_logs (
 );
 
 -- Partition by month for performance at scale
-CREATE INDEX idx_raw_logs_user_occurred ON raw_activity_logs(user_id, occurred_at DESC);
-CREATE INDEX idx_raw_logs_org_occurred  ON raw_activity_logs(organization_id, occurred_at DESC);
-CREATE INDEX idx_raw_logs_source        ON raw_activity_logs(source, occurred_at DESC);
+CREATE INDEX IF NOT EXISTS idx_raw_logs_user_occurred ON raw_activity_logs(user_id, occurred_at DESC);
+CREATE INDEX IF NOT EXISTS idx_raw_logs_org_occurred  ON raw_activity_logs(organization_id, occurred_at DESC);
+CREATE INDEX IF NOT EXISTS idx_raw_logs_source        ON raw_activity_logs(source, occurred_at DESC);
 
 -- ─── Daily Aggregates — pre-computed per user per day ─────────────────────────
 
@@ -146,8 +146,8 @@ CREATE TABLE IF NOT EXISTS daily_aggregates (
   UNIQUE(organization_id, user_id, date)
 );
 
-CREATE INDEX idx_daily_agg_user_date ON daily_aggregates(user_id, date DESC);
-CREATE INDEX idx_daily_agg_org_date  ON daily_aggregates(organization_id, date DESC);
+CREATE INDEX IF NOT EXISTS idx_daily_agg_user_date ON daily_aggregates(user_id, date DESC);
+CREATE INDEX IF NOT EXISTS idx_daily_agg_org_date  ON daily_aggregates(organization_id, date DESC);
 
 -- ─── Weekly Scores — computed analytics per user per week ─────────────────────
 
@@ -172,9 +172,9 @@ CREATE TABLE IF NOT EXISTS weekly_scores (
   UNIQUE(organization_id, user_id, week_start)
 );
 
-CREATE INDEX idx_weekly_scores_user_week ON weekly_scores(user_id, week_start DESC);
-CREATE INDEX idx_weekly_scores_org_week  ON weekly_scores(organization_id, week_start DESC);
-CREATE INDEX idx_weekly_scores_burnout   ON weekly_scores(organization_id, burnout_risk_score DESC, week_start DESC);
+CREATE INDEX IF NOT EXISTS idx_weekly_scores_user_week ON weekly_scores(user_id, week_start DESC);
+CREATE INDEX IF NOT EXISTS idx_weekly_scores_org_week  ON weekly_scores(organization_id, week_start DESC);
+CREATE INDEX IF NOT EXISTS idx_weekly_scores_burnout   ON weekly_scores(organization_id, burnout_risk_score DESC, week_start DESC);
 
 -- ─── Team Weekly Scores — org-level aggregates (no individual ranking) ─────────
 
@@ -197,7 +197,7 @@ CREATE TABLE IF NOT EXISTS team_weekly_scores (
   UNIQUE(organization_id, week_start)
 );
 
-CREATE INDEX idx_team_weekly_org_week ON team_weekly_scores(organization_id, week_start DESC);
+CREATE INDEX IF NOT EXISTS idx_team_weekly_org_week ON team_weekly_scores(organization_id, week_start DESC);
 
 -- ─── Audit Log — track all data access for privacy compliance ─────────────────
 
@@ -214,8 +214,8 @@ CREATE TABLE IF NOT EXISTS audit_logs (
   created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_audit_logs_org ON audit_logs(organization_id, created_at DESC);
-CREATE INDEX idx_audit_logs_user ON audit_logs(user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_org ON audit_logs(organization_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_user ON audit_logs(user_id, created_at DESC);
 
 -- ─── Notification Preferences ──────────────────────────────────────────────────
 
@@ -239,6 +239,13 @@ BEGIN
   RETURN NEW;
 END;
 $$ language 'plpgsql';
+
+DROP TRIGGER IF EXISTS update_organizations_updated_at ON organizations;
+DROP TRIGGER IF EXISTS update_users_updated_at ON users;
+DROP TRIGGER IF EXISTS update_integrations_updated_at ON integrations;
+DROP TRIGGER IF EXISTS update_daily_aggregates_updated_at ON daily_aggregates;
+DROP TRIGGER IF EXISTS update_weekly_scores_updated_at ON weekly_scores;
+DROP TRIGGER IF EXISTS update_team_weekly_scores_updated_at ON team_weekly_scores;
 
 CREATE TRIGGER update_organizations_updated_at   BEFORE UPDATE ON organizations   FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();
 CREATE TRIGGER update_users_updated_at           BEFORE UPDATE ON users           FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();

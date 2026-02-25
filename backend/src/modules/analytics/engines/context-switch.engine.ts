@@ -70,6 +70,6 @@ export function computeContextSwitchScore(logs: RawActivityLog[]): {
 function mapSourceToType(source: string, eventType: string): string {
   if (source === 'google_calendar') return 'meeting';
   if (source === 'slack') return 'slack';
-  if (source === 'jira') return 'jira';
+  if (source === 'jira' || source === 'github') return 'jira';
   return 'focus';
 }

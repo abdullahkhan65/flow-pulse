@@ -57,6 +57,11 @@ export const api = {
   connectSlack: () => request<{ url: string }>('/integrations/slack/connect'),
   connectJira: () => request<{ url: string }>('/integrations/jira/connect'),
   connectGithub: () => request<{ url: string }>('/integrations/github/connect'),
+  updateGithubSettings: (payload: { timeWindowDays: number; repoAllowlist: string[] }) =>
+    request<{ success: boolean }>('/integrations/github/settings', {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    }),
 
   // Team calendar
   getTeamCalendar: (start?: string) =>
@@ -202,6 +207,7 @@ export interface Integration {
   error_message?: string;
   slack_team?: string;
   jira_site?: string;
+  metadata?: Record<string, any>;
 }
 
 export interface Organization {
@@ -242,6 +248,7 @@ export interface TodaySnapshot {
   backToBackToday: number;
   emailsSentToday: number;
   emailsReceivedToday: number;
+  githubEventsToday: number;
 }
 
 export interface PartialScores {
@@ -250,6 +257,7 @@ export interface PartialScores {
   slackInterruptScore: number;
   focusScore: number;
   afterHoursScore: number;
+  githubLoadScore: number;
   burnoutRiskScore: number;
   riskLevel: 'low' | 'moderate' | 'high' | 'critical';
   riskFlags: string[];
@@ -277,7 +285,16 @@ export interface PreviewData {
     totalEmailsReceived: number;
     afterHoursEmails: number;
     avgEmailResponseMin: number | null;
+    totalGithubCommits: number;
+    totalGithubPrReviews: number;
+    totalGithubPrsCreated: number;
+    githubAfterHoursEvents: number;
   } | null;
+  signalCoverage: {
+    calendar: { connected: boolean; daysWithData: number; totalEvents: number; coveragePct: number };
+    email: { connected: boolean; daysWithData: number; totalEvents: number; coveragePct: number };
+    github: { connected: boolean; daysWithData: number; totalEvents: number; coveragePct: number };
+  };
   partialScores: PartialScores | null;
 }
 

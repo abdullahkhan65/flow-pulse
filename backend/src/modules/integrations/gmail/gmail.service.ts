@@ -4,7 +4,7 @@ import { ConfigService } from '@nestjs/config';
 import { google } from 'googleapis';
 import { DATABASE_POOL } from '../../../database/database.module';
 import { decrypt } from '../../../common/utils/encryption';
-import { subDays, getHours, getDay, startOfDay, format } from 'date-fns';
+import { subDays } from 'date-fns';
 
 interface NormalizedEmailEvent {
   userId: string;
@@ -44,9 +44,11 @@ export class GmailService {
     // Gmail uses the same google_calendar integration tokens
     const result = await this.db.query(
       `SELECT i.access_token, i.refresh_token, i.token_expires_at,
-              o.settings
+              o.settings,
+              u.timezone AS user_timezone
        FROM integrations i
        JOIN organizations o ON o.id = i.organization_id
+       JOIN users u ON u.id = i.user_id
        WHERE i.user_id = $1 AND i.type = 'google_calendar' AND i.status = 'active'`,
       [userId],
     );
@@ -59,13 +61,37 @@ export class GmailService {
       refreshToken: row.refresh_token ? decrypt(row.refresh_token, encKey) : null,
       tokenExpiresAt: row.token_expires_at,
       orgSettings: row.settings || {},
+      userTimezone: row.user_timezone || row.settings?.timezone || 'UTC',
     };
   }
 
-  private isAfterWorkHours(date: Date, settings: any): boolean {
-    const hour = getHours(date);
-    const workStart = settings?.workdayStart ?? 9;
-    const workEnd = settings?.workdayEnd ?? 18;
+  private parseWorkHour(value: string | number | undefined, fallback: number): number {
+    if (typeof value === 'number' && Number.isFinite(value)) return Math.max(0, Math.min(23, value));
+    if (typeof value === 'string') {
+      const parsed = parseInt(value.split(':')[0], 10);
+      if (Number.isFinite(parsed)) return Math.max(0, Math.min(23, parsed));
+    }
+    return fallback;
+  }
+
+  private getHourAndWeekdayInTimezone(date: Date, timeZone: string): { hour: number; weekday: number } {
+    const formatter = new Intl.DateTimeFormat('en-US', {
+      timeZone,
+      hour: '2-digit',
+      hour12: false,
+      weekday: 'short',
+    });
+    const parts = formatter.formatToParts(date);
+    const hour = parseInt(parts.find((p) => p.type === 'hour')?.value || '0', 10);
+    const weekdayStr = parts.find((p) => p.type === 'weekday')?.value || 'Mon';
+    const weekdayMap: Record<string, number> = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
+    return { hour, weekday: weekdayMap[weekdayStr] ?? 1 };
+  }
+
+  private isAfterWorkHours(date: Date, settings: any, userTimezone: string): boolean {
+    const { hour } = this.getHourAndWeekdayInTimezone(date, userTimezone);
+    const workStart = this.parseWorkHour(settings?.workdayStart, 9);
+    const workEnd = this.parseWorkHour(settings?.workdayEnd, 18);
     return hour < workStart || hour >= workEnd;
   }
 
@@ -75,6 +101,7 @@ export class GmailService {
       this.logger.debug(`No Google tokens for user ${userId} — skipping Gmail sync`);
       return { synced: 0 };
     }
+    const userTimezone = tokens.userTimezone || 'UTC';
 
     const auth = this.getOAuthClient();
     auth.setCredentials({
@@ -144,14 +171,15 @@ export class GmailService {
         const ccHeader = headers.find((h) => h.name === 'Cc')?.value || '';
         const recipientCount = toHeader.split(',').length + (ccHeader ? ccHeader.split(',').length : 0);
 
+        const { weekday } = this.getHourAndWeekdayInTimezone(occurredAt, userTimezone);
         events.push({
           userId,
           organizationId: orgId,
           source: 'gmail',
           eventType: 'email_sent',
           occurredAt,
-          isAfterHours: this.isAfterWorkHours(occurredAt, tokens.orgSettings),
-          isWeekend: [0, 6].includes(getDay(occurredAt)),
+          isAfterHours: this.isAfterWorkHours(occurredAt, tokens.orgSettings, userTimezone),
+          isWeekend: [0, 6].includes(weekday),
           metadata: {
             recipientCount: Math.min(recipientCount, 50),
             hasAttachment: false,
@@ -188,14 +216,15 @@ export class GmailService {
         const occurredAt = new Date(parseInt(internalDate));
         if (occurredAt.getTime() < sevenDaysAgoMs) continue;
 
+        const { weekday } = this.getHourAndWeekdayInTimezone(occurredAt, userTimezone);
         events.push({
           userId,
           organizationId: orgId,
           source: 'gmail',
           eventType: 'email_received',
           occurredAt,
-          isAfterHours: this.isAfterWorkHours(occurredAt, tokens.orgSettings),
-          isWeekend: [0, 6].includes(getDay(occurredAt)),
+          isAfterHours: this.isAfterWorkHours(occurredAt, tokens.orgSettings, userTimezone),
+          isWeekend: [0, 6].includes(weekday),
           metadata: {
             recipientCount: 0,
             hasAttachment: false,

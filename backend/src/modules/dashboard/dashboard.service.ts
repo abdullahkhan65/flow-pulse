@@ -6,6 +6,7 @@ import { GoogleCalendarService } from '../integrations/google-calendar/google-ca
 import { GmailService } from '../integrations/gmail/gmail.service';
 import { SlackService } from '../integrations/slack/slack.service';
 import { JiraService } from '../integrations/jira/jira.service';
+import { GithubService } from '../integrations/github/github.service';
 import { AnalyticsService, PartialScoreResult } from '../analytics/analytics.service';
 
 @Injectable()
@@ -18,6 +19,7 @@ export class DashboardService {
     private gmailService: GmailService,
     private slackService: SlackService,
     private jiraService: JiraService,
+    private githubService: GithubService,
     private analyticsService: AnalyticsService,
   ) {}
 
@@ -45,6 +47,9 @@ export class DashboardService {
         : Promise.resolve(),
       types.includes('jira')
         ? this.jiraService.syncUserActivity(userId, orgId)
+        : Promise.resolve(),
+      types.includes('github')
+        ? this.githubService.syncUserActivity(userId, orgId)
         : Promise.resolve(),
     ]);
 
@@ -242,7 +247,8 @@ export class DashboardService {
     const result = await this.db.query(
       `SELECT type, status, last_synced_at, error_message,
               metadata->>'teamName' as slack_team,
-              metadata->>'siteName' as jira_site
+              metadata->>'siteName' as jira_site,
+              metadata
        FROM integrations WHERE user_id = $1`,
       [userId],
     );
