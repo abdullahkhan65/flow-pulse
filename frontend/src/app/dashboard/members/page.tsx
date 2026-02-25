@@ -216,44 +216,55 @@ export default function TeamMembersPage() {
           </thead>
           <tbody className="divide-y divide-slate-100">
             {filtered.map((member) => (
-              <tr key={member.id} className="hover:bg-slate-50/90 transition-colors">
+              <tr key={member.id} className={clsx('transition-colors', member.is_active ? 'hover:bg-slate-50/90' : 'bg-slate-50/40 opacity-70')}>
                 <td className="px-6 py-4">
                   <div className="flex items-center gap-3">
                     {member.avatar_url ? (
                       <img src={member.avatar_url} alt={member.name} className="w-8 h-8 rounded-full" />
                     ) : (
-                      <div className="w-8 h-8 rounded-full bg-teal-100 flex items-center justify-center text-teal-700 text-sm font-medium">
-                        {member.name?.[0] || member.email[0]}
+                      <div className={clsx('w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium', member.is_active ? 'bg-teal-100 text-teal-700' : 'bg-slate-100 text-slate-400')}>
+                        {(member.name?.[0] || member.email[0]).toUpperCase()}
                       </div>
                     )}
                     <div>
-                      <div className="text-sm font-medium text-slate-900">{member.name || '—'}</div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium text-slate-900">{member.name || member.email.split('@')[0]}</span>
+                        {!member.is_active && (
+                          <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-medium text-amber-700">Invite pending</span>
+                        )}
+                      </div>
                       <div className="text-xs text-slate-500">{member.email}</div>
                     </div>
                   </div>
                 </td>
 
                 <td className="px-4 py-4">
-                  <RiskChip score={member.burnout_risk_score} />
-                  {member.burnout_risk_score > 0 && (
-                    <div className="text-xs text-slate-400 mt-1">{Math.round(member.burnout_risk_score)}/100</div>
+                  {member.is_active ? (
+                    <>
+                      <RiskChip score={member.burnout_risk_score} />
+                      {member.burnout_risk_score > 0 && (
+                        <div className="text-xs text-slate-400 mt-1">{Math.round(member.burnout_risk_score)}/100</div>
+                      )}
+                    </>
+                  ) : (
+                    <span className="text-xs text-slate-400">Awaiting sign-in</span>
                   )}
                 </td>
 
                 <td className="px-4 py-4">
-                  {member.burnout_risk_score > 0 ? (
+                  {member.is_active && member.burnout_risk_score > 0 ? (
                     <div className="space-y-1.5 w-44">
                       <ScoreBar score={member.meeting_load_score} label="Meetings" color="#F59E0B" />
                       <ScoreBar score={100 - member.focus_score} label="Focus gap" color="#EF4444" />
                       <ScoreBar score={member.after_hours_score} label="After hrs" color="#8B5CF6" />
                     </div>
                   ) : (
-                    <span className="text-xs text-slate-400">No data yet</span>
+                    <span className="text-xs text-slate-400">{member.is_active ? 'No data yet' : '—'}</span>
                   )}
                 </td>
 
                 <td className="px-4 py-4">
-                  {member.burnout_risk_delta != null ? (
+                  {member.is_active && member.burnout_risk_delta != null ? (
                     <div className="space-y-0.5">
                       <div className={clsx('flex items-center gap-1 text-xs', member.burnout_risk_delta > 0 ? 'text-red-600' : 'text-green-600')}>
                         {member.burnout_risk_delta > 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
@@ -270,13 +281,15 @@ export default function TeamMembersPage() {
                 </td>
 
                 <td className="px-4 py-4">
-                  <IntegrationDots integrations={member.integrations || {}} />
+                  {member.is_active ? <IntegrationDots integrations={member.integrations || {}} /> : <span className="text-xs text-slate-400">—</span>}
                 </td>
 
                 <td className="px-4 py-4 text-right">
-                  <Link href={`/dashboard/members/${member.id}`} className="text-teal-700 hover:text-teal-800">
-                    <ChevronRight className="w-4 h-4" />
-                  </Link>
+                  {member.is_active && (
+                    <Link href={`/dashboard/members/${member.id}`} className="text-teal-700 hover:text-teal-800">
+                      <ChevronRight className="w-4 h-4" />
+                    </Link>
+                  )}
                 </td>
               </tr>
             ))}

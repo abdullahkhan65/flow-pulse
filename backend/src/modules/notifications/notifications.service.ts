@@ -1,28 +1,36 @@
 import { Injectable, Inject, Logger } from '@nestjs/common';
 import { Pool } from 'pg';
 import { ConfigService } from '@nestjs/config';
-import * as nodemailer from 'nodemailer';
+import Mailgun from 'mailgun.js';
+import * as FormData from 'form-data';
 import { DATABASE_POOL } from '../../database/database.module';
 import { format, subWeeks, startOfWeek } from 'date-fns';
 
 @Injectable()
 export class NotificationsService {
   private readonly logger = new Logger(NotificationsService.name);
-  private transporter: nodemailer.Transporter;
+  private mailgun: ReturnType<InstanceType<typeof Mailgun>['client']> | undefined;
+  private readonly fromAddress: string;
+  private readonly domain: string;
 
   constructor(
     @Inject(DATABASE_POOL) private db: Pool,
     private configService: ConfigService,
   ) {
-    this.transporter = nodemailer.createTransport({
-      host: configService.get('email.host'),
-      port: configService.get('email.port'),
-      secure: true,
-      auth: {
-        user: configService.get('email.user'),
-        pass: configService.get('email.pass'),
-      },
-    });
+    // Read directly from process.env as a fallback — ConfigModule may not have
+    // resolved nested keys yet when the load function uses process.env at import time.
+    const apiKey = configService.get<string>('mailgun.apiKey') || process.env.MAILGUN_API_KEY;
+    const domain = configService.get<string>('mailgun.domain') || process.env.MAILGUN_DOMAIN;
+
+    if (!apiKey) {
+      this.logger.warn('MAILGUN_API_KEY is not set — email sending will be disabled');
+    } else {
+      const mg = new Mailgun(FormData);
+      this.mailgun = mg.client({ username: 'api', key: apiKey, url: 'https://api.mailgun.net' });
+    }
+
+    this.domain = domain || '';
+    this.fromAddress = configService.get<string>('email.from') || process.env.EMAIL_FROM || 'FlowPulse <noreply@flowpulse.app>';
   }
 
   async sendWeeklyDigests() {
@@ -120,9 +128,15 @@ export class NotificationsService {
   }
 
   private async sendEmail(options: { to: string; subject: string; html: string }) {
-    await this.transporter.sendMail({
-      from: this.configService.get('email.from'),
-      ...options,
+    if (!this.mailgun || !this.domain) {
+      this.logger.warn(`Email not sent to ${options.to} — Mailgun is not configured`);
+      return;
+    }
+    await this.mailgun.messages.create(this.domain, {
+      from: this.fromAddress,
+      to: options.to,
+      subject: options.subject,
+      html: options.html,
     });
   }
 }

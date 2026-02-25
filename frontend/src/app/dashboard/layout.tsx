@@ -47,6 +47,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     router.push('/');
   };
 
+  const isManager = user && ['owner', 'admin', 'manager'].includes(user.role);
+
+  // Redirect plain members away from manager-only pages
+  useEffect(() => {
+    if (user && !isManager && pathname === '/dashboard') {
+      router.replace('/dashboard/my-scores');
+    }
+  }, [user, isManager, pathname, router]);
+
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
@@ -54,8 +63,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       </div>
     );
   }
-
-  const isManager = user && ['owner', 'admin', 'manager'].includes(user.role);
 
   return (
     <div className="min-h-screen px-4 py-4 md:px-6 md:py-6">
@@ -67,7 +74,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </div>
 
           <nav className="grid gap-1">
-            <NavItem href="/dashboard" icon={LayoutDashboard} label="Team Dashboard" active={pathname === '/dashboard'} />
+            {isManager && <NavItem href="/dashboard" icon={LayoutDashboard} label="Team Dashboard" active={pathname === '/dashboard'} />}
             {isManager && <NavItem href="/dashboard/members" icon={Users} label="Team Members" active={pathname === '/dashboard/members'} />}
             {isManager && <NavItem href="/dashboard/calendar" icon={Calendar} label="Team Calendar" active={pathname === '/dashboard/calendar'} />}
             <NavItem href="/dashboard/my-scores" icon={Bell} label="My Scores" active={pathname === '/dashboard/my-scores'} />

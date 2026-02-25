@@ -11,7 +11,7 @@ import { format, parseISO } from 'date-fns';
 import clsx from 'clsx';
 import {
   RefreshCw, Info, Clock, Calendar, MessageSquare, Zap,
-  Moon, AlertTriangle,
+  Moon, AlertTriangle, Mail,
 } from 'lucide-react';
 
 // ─── Sub-components ──────────────────────────────────────────────────────────
@@ -94,6 +94,15 @@ function TodayCard({ snapshot }: { snapshot: TodaySnapshot }) {
       bg: snapshot.afterHoursEventsToday > 0 ? 'bg-amber-50' : 'bg-gray-50',
       alert: snapshot.afterHoursEventsToday > 2,
     },
+    {
+      icon: Mail,
+      label: 'Emails sent',
+      value: snapshot.emailsSentToday,
+      sub: `${snapshot.emailsReceivedToday} received`,
+      color: 'text-indigo-600',
+      bg: 'bg-indigo-50',
+      alert: false,
+    },
   ];
 
   return (
@@ -137,6 +146,12 @@ function WeekSoFarCard({ data, daysCollected }: {
           { label: 'Avg meeting/day', value: `${data.avgMeetingMinutesPerDay}min`, sub: data.backToBackMeetings > 0 ? `${data.backToBackMeetings} back-to-back` : 'no back-to-back' },
           { label: 'Avg focus/day', value: `${data.avgFocusMinutesPerDay}min`, sub: `${data.totalFocusMinutes}min total` },
           { label: 'After-hours', value: data.afterHoursEvents, sub: data.totalSlackMessages > 0 ? `${data.totalSlackMessages} Slack msgs` : 'events' },
+          { label: 'Emails sent', value: data.totalEmailsSent, sub: `${data.totalEmailsReceived} received` },
+          {
+            label: 'Avg response time',
+            value: data.avgEmailResponseMin != null ? `${data.avgEmailResponseMin}min` : '—',
+            sub: data.afterHoursEmails > 0 ? `${data.afterHoursEmails} after-hours` : 'no after-hours emails',
+          },
         ].map((item) => (
           <div key={item.label}>
             <div className="text-lg font-semibold text-slate-900 [font-family:var(--font-heading)]">{item.value}</div>

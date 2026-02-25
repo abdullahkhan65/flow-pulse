@@ -157,6 +157,8 @@ export interface TeamMember {
   email: string;
   avatar_url: string;
   timezone: string;
+  is_active: boolean;
+  role: string;
   burnout_risk_score: number;
   meeting_load_score: number;
   focus_score: number;
@@ -238,6 +240,8 @@ export interface TodaySnapshot {
   afterHoursEventsToday: number;
   contextSwitchesToday: number;
   backToBackToday: number;
+  emailsSentToday: number;
+  emailsReceivedToday: number;
 }
 
 export interface PartialScores {
@@ -269,6 +273,10 @@ export interface PreviewData {
     totalSlackMessages: number;
     totalFocusMinutes: number;
     avgFocusMinutesPerDay: number;
+    totalEmailsSent: number;
+    totalEmailsReceived: number;
+    afterHoursEmails: number;
+    avgEmailResponseMin: number | null;
   } | null;
   partialScores: PartialScores | null;
 }

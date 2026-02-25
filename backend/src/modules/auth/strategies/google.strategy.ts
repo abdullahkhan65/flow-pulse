@@ -20,9 +20,17 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
         'https://www.googleapis.com/auth/calendar.readonly',
         'https://www.googleapis.com/auth/gmail.metadata',
       ],
-      accessType: 'offline',
-      prompt: 'consent',  // Force refresh token on every login
     });
+  }
+
+  // passport-google-oauth20's authorizationParams() reads from runtime options only,
+  // not constructor options — accessType/prompt in super() are silently ignored.
+  // Override here so Google always issues a refresh token.
+  authorizationParams(): object {
+    return {
+      access_type: 'offline',
+      prompt: 'consent',
+    };
   }
 
   async validate(

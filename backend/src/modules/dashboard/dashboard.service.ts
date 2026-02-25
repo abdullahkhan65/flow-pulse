@@ -3,6 +3,7 @@ import { Pool } from 'pg';
 import { DATABASE_POOL } from '../../database/database.module';
 import { format, subWeeks, startOfWeek, subDays } from 'date-fns';
 import { GoogleCalendarService } from '../integrations/google-calendar/google-calendar.service';
+import { GmailService } from '../integrations/gmail/gmail.service';
 import { SlackService } from '../integrations/slack/slack.service';
 import { JiraService } from '../integrations/jira/jira.service';
 import { AnalyticsService, PartialScoreResult } from '../analytics/analytics.service';
@@ -14,6 +15,7 @@ export class DashboardService {
   constructor(
     @Inject(DATABASE_POOL) private db: Pool,
     private googleCalendarService: GoogleCalendarService,
+    private gmailService: GmailService,
     private slackService: SlackService,
     private jiraService: JiraService,
     private analyticsService: AnalyticsService,
@@ -33,6 +35,10 @@ export class DashboardService {
     await Promise.allSettled([
       types.includes('google_calendar')
         ? this.googleCalendarService.syncUserCalendar(userId, orgId)
+        : Promise.resolve(),
+      // Gmail uses the same google_calendar token — sync whenever calendar is connected
+      types.includes('google_calendar')
+        ? this.gmailService.syncUserEmails(userId, orgId)
         : Promise.resolve(),
       types.includes('slack')
         ? this.slackService.syncUserMessages(userId, orgId)
@@ -209,7 +215,7 @@ export class DashboardService {
 
     const result = await this.db.query(
       `SELECT
-         u.id, u.name, u.email, u.avatar_url, u.timezone,
+         u.id, u.name, u.email, u.avatar_url, u.timezone, u.is_active, u.role,
          ws.burnout_risk_score, ws.meeting_load_score, ws.focus_score,
          ws.after_hours_score, ws.burnout_risk_delta,
          ws.score_breakdown->'riskFlags' as risk_flags,
@@ -220,10 +226,10 @@ export class DashboardService {
        FROM users u
        LEFT JOIN weekly_scores ws ON ws.user_id = u.id AND ws.week_start = $2
        LEFT JOIN integrations i ON i.user_id = u.id
-       WHERE u.organization_id = $1 AND u.is_active = true
+       WHERE u.organization_id = $1
        GROUP BY u.id, ws.burnout_risk_score, ws.meeting_load_score, ws.focus_score,
                 ws.after_hours_score, ws.burnout_risk_delta, ws.score_breakdown
-       ORDER BY ws.burnout_risk_score DESC NULLS LAST`,
+       ORDER BY u.is_active DESC, ws.burnout_risk_score DESC NULLS LAST`,
       [orgId, latestWeek],
     );
 
