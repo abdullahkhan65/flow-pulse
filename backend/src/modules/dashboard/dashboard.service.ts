@@ -3,6 +3,7 @@ import { Pool } from 'pg';
 import { DATABASE_POOL } from '../../database/database.module';
 import { format, subWeeks, startOfWeek, subDays } from 'date-fns';
 import { GoogleCalendarService } from '../integrations/google-calendar/google-calendar.service';
+import { GmailService } from '../integrations/gmail/gmail.service';
 import { SlackService } from '../integrations/slack/slack.service';
 import { JiraService } from '../integrations/jira/jira.service';
 import { AnalyticsService, PartialScoreResult } from '../analytics/analytics.service';
@@ -14,6 +15,7 @@ export class DashboardService {
   constructor(
     @Inject(DATABASE_POOL) private db: Pool,
     private googleCalendarService: GoogleCalendarService,
+    private gmailService: GmailService,
     private slackService: SlackService,
     private jiraService: JiraService,
     private analyticsService: AnalyticsService,
@@ -33,6 +35,10 @@ export class DashboardService {
     await Promise.allSettled([
       types.includes('google_calendar')
         ? this.googleCalendarService.syncUserCalendar(userId, orgId)
+        : Promise.resolve(),
+      // Gmail uses the same google_calendar token — sync whenever calendar is connected
+      types.includes('google_calendar')
+        ? this.gmailService.syncUserEmails(userId, orgId)
         : Promise.resolve(),
       types.includes('slack')
         ? this.slackService.syncUserMessages(userId, orgId)

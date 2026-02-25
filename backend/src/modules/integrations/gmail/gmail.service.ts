@@ -97,34 +97,52 @@ export class GmailService {
     });
 
     const gmail = google.gmail({ version: 'v1', auth });
-    const sevenDaysAgo = Math.floor(subDays(new Date(), 7).getTime() / 1000);
+    // gmail.metadata scope does NOT support the 'q' search parameter.
+    // Use labelIds to filter by mailbox, then discard messages older than 7 days by internalDate.
+    const sevenDaysAgoMs = subDays(new Date(), 7).getTime();
     const events: NormalizedEmailEvent[] = [];
 
-    // Fetch SENT emails
+    // Fetch message details in parallel batches of 10 to avoid sequential N+1 API calls
+    const fetchInBatches = async <T>(
+      ids: string[],
+      fn: (id: string) => Promise<T>,
+    ): Promise<T[]> => {
+      const BATCH = 10;
+      const results: T[] = [];
+      for (let i = 0; i < ids.length; i += BATCH) {
+        results.push(...await Promise.all(ids.slice(i, i + BATCH).map(fn)));
+      }
+      return results;
+    };
+
+    // Fetch SENT emails (labelIds replaces q= which is unsupported with metadata scope)
     try {
       const sentRes = await gmail.users.messages.list({
         userId: 'me',
-        q: `after:${sevenDaysAgo} in:sent`,
+        labelIds: ['SENT'],
         maxResults: 200,
       });
 
-      const sentMessages = sentRes.data.messages || [];
-      for (const msg of sentMessages) {
-        const detail = await gmail.users.messages.get({
+      const sentIds = (sentRes.data.messages || []).map((m) => m.id!);
+      const sentDetails = await fetchInBatches(sentIds, (id) =>
+        gmail.users.messages.get({
           userId: 'me',
-          id: msg.id!,
+          id,
           format: 'metadata',
-          metadataHeaders: ['To', 'Cc', 'Date', 'Content-Type'],
-        });
+          metadataHeaders: ['To', 'Cc'],
+        }),
+      );
+
+      for (const detail of sentDetails) {
+        const internalDate = detail.data.internalDate || '0';
+        const occurredAt = new Date(parseInt(internalDate));
+        // Skip messages older than 7 days (can't filter by date via q with metadata scope)
+        if (occurredAt.getTime() < sevenDaysAgoMs) continue;
 
         const headers = detail.data.payload?.headers || [];
         const toHeader = headers.find((h) => h.name === 'To')?.value || '';
         const ccHeader = headers.find((h) => h.name === 'Cc')?.value || '';
-        const recipientCount = (toHeader.split(',').length) + (ccHeader ? ccHeader.split(',').length : 0);
-        const hasAttachment = (detail.data.payload?.parts || []).some((p) => p.filename && p.filename.length > 0);
-        const internalDate = detail.data.internalDate || '0';
-        const occurredAt = new Date(parseInt(internalDate));
-        const isWeekend = [0, 6].includes(getDay(occurredAt));
+        const recipientCount = toHeader.split(',').length + (ccHeader ? ccHeader.split(',').length : 0);
 
         events.push({
           userId,
@@ -133,10 +151,10 @@ export class GmailService {
           eventType: 'email_sent',
           occurredAt,
           isAfterHours: this.isAfterWorkHours(occurredAt, tokens.orgSettings),
-          isWeekend,
+          isWeekend: [0, 6].includes(getDay(occurredAt)),
           metadata: {
-            recipientCount: Math.min(recipientCount, 50), // cap to avoid outliers
-            hasAttachment,
+            recipientCount: Math.min(recipientCount, 50),
+            hasAttachment: false,
             isThread: !!detail.data.threadId,
             threadId: detail.data.threadId || '',
             internalDate,
@@ -147,26 +165,28 @@ export class GmailService {
       this.logger.error(`Gmail SENT sync error for ${userId}: ${err.message}`);
     }
 
-    // Fetch INBOX received emails (not sent by user)
+    // Fetch INBOX received emails
     try {
       const inboxRes = await gmail.users.messages.list({
         userId: 'me',
-        q: `after:${sevenDaysAgo} in:inbox -in:sent`,
+        labelIds: ['INBOX'],
         maxResults: 200,
       });
 
-      const inboxMessages = inboxRes.data.messages || [];
-      for (const msg of inboxMessages) {
-        const detail = await gmail.users.messages.get({
+      const inboxIds = (inboxRes.data.messages || []).map((m) => m.id!);
+      const inboxDetails = await fetchInBatches(inboxIds, (id) =>
+        gmail.users.messages.get({
           userId: 'me',
-          id: msg.id!,
+          id,
           format: 'metadata',
-          metadataHeaders: ['Date'],
-        });
+          metadataHeaders: [],
+        }),
+      );
 
+      for (const detail of inboxDetails) {
         const internalDate = detail.data.internalDate || '0';
         const occurredAt = new Date(parseInt(internalDate));
-        const isWeekend = [0, 6].includes(getDay(occurredAt));
+        if (occurredAt.getTime() < sevenDaysAgoMs) continue;
 
         events.push({
           userId,
@@ -175,7 +195,7 @@ export class GmailService {
           eventType: 'email_received',
           occurredAt,
           isAfterHours: this.isAfterWorkHours(occurredAt, tokens.orgSettings),
-          isWeekend,
+          isWeekend: [0, 6].includes(getDay(occurredAt)),
           metadata: {
             recipientCount: 0,
             hasAttachment: false,

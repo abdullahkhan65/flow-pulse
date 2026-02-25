@@ -20,6 +20,8 @@ export interface TodaySnapshot {
   afterHoursEventsToday: number;
   contextSwitchesToday: number;
   backToBackToday: number;
+  emailsSentToday: number;
+  emailsReceivedToday: number;
 }
 
 export interface PartialScoreResult {
@@ -40,6 +42,10 @@ export interface PartialScoreResult {
     totalSlackMessages: number;
     totalFocusMinutes: number;
     avgFocusMinutesPerDay: number;
+    totalEmailsSent: number;
+    totalEmailsReceived: number;
+    afterHoursEmails: number;
+    avgEmailResponseMin: number | null;
   } | null;
   partialScores: {
     meetingLoadScore: number;
@@ -508,6 +514,13 @@ export class AnalyticsService {
     const totalMeetings = aggregates.reduce((s, d) => s + d.meeting_count, 0);
     const totalMeetingMinutes = aggregates.reduce((s, d) => s + d.total_meeting_minutes, 0);
     const totalFocusMinutes = aggregates.reduce((s, d) => s + (d.solo_focus_minutes || 0), 0);
+    const totalEmailsSent = aggregates.reduce((s, d) => s + (d.emails_sent || 0), 0);
+    const totalEmailsReceived = aggregates.reduce((s, d) => s + (d.emails_received || 0), 0);
+    const totalAfterHoursEmails = aggregates.reduce((s, d) => s + (d.after_hours_emails || 0), 0);
+    const responseMins = aggregates.map((d) => d.avg_email_response_min).filter((v) => v != null) as number[];
+    const avgEmailResponseMin = responseMins.length > 0
+      ? Math.round(responseMins.reduce((a, b) => a + b, 0) / responseMins.length)
+      : null;
 
     return {
       isPartial: true,
@@ -527,6 +540,10 @@ export class AnalyticsService {
         totalSlackMessages: aggregates.reduce((s, d) => s + d.slack_messages_sent, 0),
         totalFocusMinutes,
         avgFocusMinutesPerDay: daysCollected ? Math.round(totalFocusMinutes / daysCollected) : 0,
+        totalEmailsSent,
+        totalEmailsReceived,
+        afterHoursEmails: totalAfterHoursEmails,
+        avgEmailResponseMin,
       },
       partialScores: {
         meetingLoadScore,
@@ -556,6 +573,8 @@ export class AnalyticsService {
       afterHoursEventsToday: r.after_hours_events || 0,
       contextSwitchesToday: r.context_switches || 0,
       backToBackToday: r.back_to_back_meetings || 0,
+      emailsSentToday: r.emails_sent || 0,
+      emailsReceivedToday: r.emails_received || 0,
     };
   }
 

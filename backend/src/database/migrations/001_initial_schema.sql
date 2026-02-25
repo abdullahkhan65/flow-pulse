@@ -132,6 +132,15 @@ CREATE TABLE IF NOT EXISTS daily_aggregates (
   jira_comments         INTEGER NOT NULL DEFAULT 0,
   -- Context switching
   context_switches      INTEGER NOT NULL DEFAULT 0,
+  -- Email metrics
+  emails_sent           INTEGER NOT NULL DEFAULT 0,
+  emails_received       INTEGER NOT NULL DEFAULT 0,
+  after_hours_emails    INTEGER NOT NULL DEFAULT 0,
+  avg_email_response_min INTEGER,
+  -- GitHub metrics
+  github_commits        INTEGER NOT NULL DEFAULT 0,
+  github_pr_reviews     INTEGER NOT NULL DEFAULT 0,
+  github_prs_created    INTEGER NOT NULL DEFAULT 0,
   created_at            TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at            TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   UNIQUE(organization_id, user_id, date)

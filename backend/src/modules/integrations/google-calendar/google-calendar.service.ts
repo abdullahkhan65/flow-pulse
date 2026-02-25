@@ -164,29 +164,53 @@ export class GoogleCalendarService {
     const timeMin = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
     const timeMax = new Date().toISOString();
 
-    let pageToken: string | undefined;
+    // Fetch all calendars the user has selected — not just 'primary'.
+    // Meetings are often on team/work/shared calendars, not the primary one.
+    const calListResponse = await calendar.calendarList.list({ fields: 'items(id,summary,primary,selected,accessRole)' });
+    const allCalendars = calListResponse.data.items || [];
+    // Sync any calendar the user has selected to display, skipping noise (holidays/birthdays)
+    const SKIP_PATTERN = /holiday|birthday|contact/i;
+    const calendarIds = allCalendars
+      .filter((c) => c.selected !== false && !SKIP_PATTERN.test(c.summary || ''))
+      .map((c) => c.id!);
+
+    if (calendarIds.length === 0) calendarIds.push('primary');
+    this.logger.log(`Syncing ${calendarIds.length} calendars for user ${userId}: ${allCalendars.map((c) => c.summary).join(', ')}`);
+
     const events: NormalizedCalendarEvent[] = [];
+    const seenEventIds = new Set<string>();
+    let rawCount = 0;
 
-    do {
-      const response = await calendar.events.list({
-        calendarId: 'primary',
-        timeMin,
-        timeMax,
-        singleEvents: true,
-        orderBy: 'startTime',
-        maxResults: 250,
-        pageToken,
-        fields: 'items(id,start,end,attendees,status,recurringEventId,conferenceData,hangoutLink,organizer),nextPageToken',
-      });
+    for (const calendarId of calendarIds) {
+      let pageToken: string | undefined;
+      do {
+        const response = await calendar.events.list({
+          calendarId,
+          timeMin,
+          timeMax,
+          singleEvents: true,
+          orderBy: 'startTime',
+          maxResults: 250,
+          pageToken,
+          fields: 'items(id,start,end,attendees,status,recurringEventId,conferenceData,hangoutLink,organizer),nextPageToken',
+        });
 
-      const items = response.data.items || [];
-      for (const event of items) {
-        const normalized = this.normalizeEvent(event, userId, orgId, orgSettings);
-        if (normalized) events.push(normalized);
-      }
+        const items = response.data.items || [];
+        rawCount += items.length;
+        for (const event of items) {
+          // Deduplicate events that appear on multiple calendars (e.g. invited events)
+          if (event.id && seenEventIds.has(event.id)) continue;
+          if (event.id) seenEventIds.add(event.id);
 
-      pageToken = response.data.nextPageToken || undefined;
-    } while (pageToken);
+          const normalized = this.normalizeEvent(event, userId, orgId, orgSettings);
+          if (normalized) events.push(normalized);
+        }
+
+        pageToken = response.data.nextPageToken || undefined;
+      } while (pageToken);
+    }
+
+    this.logger.log(`Calendar API returned ${rawCount} raw events across ${calendarIds.length} calendars, ${events.length} passed normalization for user ${userId}`);
 
     // Bulk insert, skip duplicates by using occurred_at + user_id + source as natural key
     if (events.length > 0) {
