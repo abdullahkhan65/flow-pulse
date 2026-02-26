@@ -114,7 +114,7 @@ export default function TeamCalendarPage() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin w-8 h-8 border-2 border-teal-700 border-t-transparent rounded-full" />
+        <div className="animate-spin w-8 h-8 border-2 border-blue-700 border-t-transparent rounded-full" />
       </div>
     );
   }
@@ -155,7 +155,7 @@ export default function TeamCalendarPage() {
       </div>
 
       {/* Privacy note */}
-      <div className="flex items-start gap-2 rounded-xl border border-cyan-200 bg-cyan-50 p-3">
+      <div className="flex items-start gap-2 rounded-xl border border-sky-200 bg-sky-50 p-3">
         <AlertTriangle className="w-4 h-4 text-blue-500 mt-0.5 flex-shrink-0" />
         <p className="text-xs text-blue-700">
           Load levels are derived from meeting duration and after-hours activity only — no content is displayed.

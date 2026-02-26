@@ -134,13 +134,13 @@ function WeekInProgressCard({ wip }: { wip: WeekInProgress }) {
       label: 'Tickets completed',
       value: wip.totalJiraCompleted,
       icon: CheckCircle2,
-      color: 'text-teal-600',
-      bg: 'bg-teal-50',
+      color: 'text-blue-600',
+      bg: 'bg-blue-50',
     }] : []),
   ];
 
   return (
-    <div className="card p-6 border-l-4 border-teal-600">
+    <div className="card p-6 border-l-4 border-blue-600">
       <div className="flex items-center justify-between mb-4">
         <div>
           <h2 className="text-sm font-semibold text-slate-800">This Week So Far</h2>
@@ -156,7 +156,7 @@ function WeekInProgressCard({ wip }: { wip: WeekInProgress }) {
               className={clsx(
                 'w-5 h-5 rounded-sm text-[9px] font-medium flex items-center justify-center',
                 i < wip.daysCollected
-                  ? 'bg-teal-700 text-white'
+                  ? 'bg-blue-700 text-white'
                   : 'bg-slate-100 text-slate-400',
               )}
             >
@@ -203,7 +203,7 @@ export default function TeamDashboardPage() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin w-8 h-8 border-2 border-teal-700 border-t-transparent rounded-full" />
+        <div className="animate-spin w-8 h-8 border-2 border-blue-700 border-t-transparent rounded-full" />
       </div>
     );
   }

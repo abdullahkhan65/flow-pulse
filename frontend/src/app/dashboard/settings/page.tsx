@@ -77,7 +77,7 @@ function IntegrationCard({
           'flex-shrink-0 rounded-xl px-4 py-2 text-sm font-medium transition-colors',
           isConnected
             ? 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-            : 'bg-teal-700 text-white hover:bg-teal-800',
+            : 'bg-blue-700 text-white hover:bg-blue-800',
         )}
       >
         {isConnected ? 'Reconnect' : 'Connect'}
@@ -317,7 +317,7 @@ export default function SettingsPage() {
                 onChange={(e) => handleConsentChange(e.target.checked)}
                 className="sr-only peer"
               />
-              <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-teal-700" />
+              <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-700" />
             </label>
           </div>
 

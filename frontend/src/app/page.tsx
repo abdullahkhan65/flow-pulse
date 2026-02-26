@@ -50,7 +50,7 @@ export default function LandingPage() {
         <section className="hero-glow card reveal-up overflow-hidden p-7 md:p-11">
           <div className="grid items-center gap-10 md:grid-cols-[1.12fr_0.88fr]">
             <div>
-              <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-teal-200 bg-teal-50 px-3 py-1.5 text-xs font-semibold text-teal-800">
+              <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-800">
                 <CalendarRange className="h-3.5 w-3.5" />
                 Team health analytics for engineering orgs
               </div>
@@ -105,7 +105,7 @@ export default function LandingPage() {
         <section className="mt-8 grid gap-4 md:grid-cols-3">
           {features.map((item, idx) => (
             <article key={item.title} className="card reveal-up p-6" style={{ animationDelay: `${0.15 + idx * 0.07}s` }}>
-              <item.icon className="h-5 w-5 text-teal-700" />
+              <item.icon className="h-5 w-5 text-blue-700" />
               <h2 className="mt-4 text-lg font-semibold [font-family:var(--font-heading)]">{item.title}</h2>
               <p className="mt-2 text-sm leading-relaxed text-slate-600">{item.body}</p>
             </article>

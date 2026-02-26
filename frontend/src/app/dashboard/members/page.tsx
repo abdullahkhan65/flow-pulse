@@ -91,7 +91,7 @@ function InviteModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
             <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-3">
               <Send className="w-5 h-5 text-green-600" />
             </div>
-            <p className="text-sm font-medium text-slate-900">Invite sent to <span className="text-teal-700">{email}</span></p>
+            <p className="text-sm font-medium text-slate-900">Invite sent to <span className="text-blue-700">{email}</span></p>
             <p className="text-xs text-slate-500 mt-1">They'll appear here once they sign in with Google.</p>
             <button onClick={onClose} className="btn-primary mt-4 px-5 py-2 text-sm">Done</button>
           </div>
@@ -105,7 +105,7 @@ function InviteModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="colleague@company.com"
-                className="w-full rounded-xl border border-slate-200 bg-white/80 px-3.5 py-2.5 text-sm text-slate-900 focus:outline-none focus:border-teal-600"
+                className="w-full rounded-xl border border-slate-200 bg-white/80 px-3.5 py-2.5 text-sm text-slate-900 focus:outline-none focus:border-blue-600"
               />
             </div>
             <div>
@@ -113,7 +113,7 @@ function InviteModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
               <select
                 value={role}
                 onChange={(e) => setRole(e.target.value)}
-                className="w-full rounded-xl border border-slate-200 bg-white/80 px-3.5 py-2.5 text-sm text-slate-900 focus:outline-none focus:border-teal-600"
+                className="w-full rounded-xl border border-slate-200 bg-white/80 px-3.5 py-2.5 text-sm text-slate-900 focus:outline-none focus:border-blue-600"
               >
                 <option value="member">Member — sees only own data</option>
                 <option value="manager">Manager — sees team data</option>
@@ -153,7 +153,7 @@ export default function TeamMembersPage() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin w-8 h-8 border-2 border-teal-700 border-t-transparent rounded-full" />
+        <div className="animate-spin w-8 h-8 border-2 border-blue-700 border-t-transparent rounded-full" />
       </div>
     );
   }
@@ -183,7 +183,7 @@ export default function TeamMembersPage() {
               placeholder="Search members..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-48 rounded-xl border border-slate-200 bg-white/80 pl-9 pr-4 py-2 text-sm text-slate-700 focus:outline-none focus:border-teal-600"
+              className="w-48 rounded-xl border border-slate-200 bg-white/80 pl-9 pr-4 py-2 text-sm text-slate-700 focus:outline-none focus:border-blue-600"
             />
           </div>
           <button onClick={() => setShowInvite(true)} className="btn-primary gap-2 py-2 px-4 text-sm">
@@ -194,7 +194,7 @@ export default function TeamMembersPage() {
       </div>
 
       {/* Privacy reminder */}
-      <div className="flex items-start gap-2 rounded-xl border border-cyan-200 bg-cyan-50 p-3">
+      <div className="flex items-start gap-2 rounded-xl border border-sky-200 bg-sky-50 p-3">
         <AlertTriangle className="w-4 h-4 text-blue-500 mt-0.5 flex-shrink-0" />
         <p className="text-xs text-blue-700">
           These scores reflect team health signals, not individual performance. Use them to start
@@ -222,7 +222,7 @@ export default function TeamMembersPage() {
                     {member.avatar_url ? (
                       <img src={member.avatar_url} alt={member.name} className="w-8 h-8 rounded-full" />
                     ) : (
-                      <div className={clsx('w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium', member.is_active ? 'bg-teal-100 text-teal-700' : 'bg-slate-100 text-slate-400')}>
+                      <div className={clsx('w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium', member.is_active ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-400')}>
                         {(member.name?.[0] || member.email[0]).toUpperCase()}
                       </div>
                     )}
@@ -286,7 +286,7 @@ export default function TeamMembersPage() {
 
                 <td className="px-4 py-4 text-right">
                   {member.is_active && (
-                    <Link href={`/dashboard/members/${member.id}`} className="text-teal-700 hover:text-teal-800">
+                    <Link href={`/dashboard/members/${member.id}`} className="text-blue-700 hover:text-blue-800">
                       <ChevronRight className="w-4 h-4" />
                     </Link>
                   )}

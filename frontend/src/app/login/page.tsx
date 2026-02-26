@@ -49,7 +49,7 @@ function LoginContent() {
     <div className="mx-auto flex min-h-screen w-full max-w-6xl items-center px-5 py-10 md:px-8">
       <div className="grid w-full items-center gap-8 md:grid-cols-[1.1fr_0.9fr]">
         <div className="reveal-up">
-          <p className="inline-flex items-center gap-2 rounded-full border border-cyan-200 bg-cyan-50 px-3 py-1 text-xs font-semibold text-cyan-900">
+          <p className="inline-flex items-center gap-2 rounded-full border border-sky-200 bg-sky-50 px-3 py-1 text-xs font-semibold text-sky-900">
             <Sparkles className="h-3.5 w-3.5" />
             Secure OAuth onboarding
           </p>
@@ -118,7 +118,7 @@ function LoginContent() {
 
           <p className="mt-5 text-center text-xs text-slate-500">
             By signing in, you agree to our{' '}
-            <Link href="/privacy" className="font-semibold text-teal-700 hover:text-teal-800">
+            <Link href="/privacy" className="font-semibold text-blue-700 hover:text-blue-800">
               privacy policy
             </Link>
             .

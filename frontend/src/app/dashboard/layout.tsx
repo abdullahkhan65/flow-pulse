@@ -16,10 +16,10 @@ function NavItem({ href, icon: Icon, label, active }: {
   return (
     <Link
       href={href}
-      className={`flex items-center gap-2 rounded-xl px-3 py-2 text-sm transition-all ${
+      className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-all ${
         active
-          ? 'bg-gradient-to-r from-teal-700 to-orange-500 text-white shadow-[0_12px_30px_rgba(15,90,84,0.34)]'
-          : 'text-slate-600 hover:bg-white hover:text-slate-900'
+          ? 'bg-blue-600 text-white shadow-[0_8px_16px_rgba(9,30,66,0.24)]'
+          : 'text-slate-600 hover:bg-blue-50 hover:text-slate-900'
       }`}
     >
       <Icon className="h-4 w-4" />
@@ -66,7 +66,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-teal-700 border-t-transparent" />
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-blue-600 border-t-transparent" />
       </div>
     );
   }
@@ -74,8 +74,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   return (
     <div className="min-h-screen px-4 py-4 md:px-6 md:py-6">
       <div className="mx-auto grid w-full max-w-[1320px] gap-4 md:grid-cols-[250px_1fr]">
-        <aside className="card flex flex-col p-3 md:p-4">
-          <div className="mb-4 rounded-2xl border border-white/65 bg-gradient-to-br from-white/90 to-white/70 p-3">
+        <aside className="card flex flex-col bg-white p-3 md:p-4">
+          <div className="mb-4 rounded-xl border border-slate-200 bg-slate-50 p-3">
             <FlowPulseLogo />
             <p className="mt-2 truncate text-xs text-slate-500">{user?.organization_name || 'Workspace'}</p>
           </div>
@@ -91,12 +91,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             )}
           </nav>
 
-          <div className="mt-4 border-t border-slate-200/80 pt-4">
-            <div className="flex items-center gap-3 rounded-xl bg-white/70 p-2.5">
+          <div className="mt-4 border-t border-slate-200 pt-4">
+            <div className="flex items-center gap-3 rounded-lg border border-slate-200 bg-slate-50 p-2.5">
               {user?.avatar_url ? (
                 <img src={user.avatar_url} alt={user.name} className="h-9 w-9 rounded-full object-cover" />
               ) : (
-                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-teal-100 text-sm font-semibold text-teal-700">
+                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-blue-100 text-sm font-semibold text-blue-700">
                   {user?.name?.[0] || 'U'}
                 </div>
               )}
@@ -111,7 +111,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </div>
         </aside>
 
-        <main className="card min-h-[80vh] overflow-hidden bg-gradient-to-b from-white/80 to-white/70 p-4 md:p-7">{children}</main>
+        <main className="card min-h-[80vh] overflow-hidden bg-white p-4 md:p-7">{children}</main>
       </div>
     </div>
   );
