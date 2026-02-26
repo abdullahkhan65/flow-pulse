@@ -109,6 +109,12 @@ export class DashboardController {
     );
   }
 
+  @Get('me/jira-tickets')
+  @ApiOperation({ summary: 'Get tickets completed this week + currently in-progress from Jira. Titles fetched live, never stored.' })
+  getJiraTickets(@CurrentUser() user: JwtPayload) {
+    return this.dashboardService.getJiraTicketSummary(user.sub);
+  }
+
   @Get('integrations')
   @ApiOperation({ summary: 'Get my integration connection status' })
   getIntegrationStatus(@CurrentUser() user: JwtPayload) {

@@ -5,13 +5,13 @@ import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { CurrentUser, JwtPayload } from '../../../common/decorators/current-user.decorator';
 
 @ApiTags('Integrations - Jira')
-@ApiBearerAuth()
-@UseGuards(JwtAuthGuard)
 @Controller('integrations/jira')
 export class JiraController {
   constructor(private readonly jiraService: JiraService) {}
 
   @Get('connect')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Get Jira OAuth URL' })
   connect(@CurrentUser() user: JwtPayload) {
     const state = Buffer.from(JSON.stringify({ userId: user.sub, orgId: user.organizationId })).toString('base64');
@@ -27,6 +27,6 @@ export class JiraController {
   ) {
     const { userId, orgId } = JSON.parse(Buffer.from(state, 'base64').toString());
     await this.jiraService.handleCallback(code, userId, orgId);
-    res.redirect(`${process.env.FRONTEND_URL}/settings?jira=connected`);
+    res.redirect(`${process.env.FRONTEND_URL}/dashboard/settings?jira=connected`);
   }
 }

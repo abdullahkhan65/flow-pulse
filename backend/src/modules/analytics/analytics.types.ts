@@ -14,6 +14,11 @@ export interface DailyAggregate {
   weekend_events: number;
   jira_transitions: number;
   jira_comments: number;
+  jira_issues_completed: number;
+  jira_after_hours_transitions: number;
+  jira_weekend_transitions: number;
+  jira_todo_count: number;
+  jira_in_progress_count: number;
   context_switches: number;
   // Email (Gmail)
   emails_sent: number;
