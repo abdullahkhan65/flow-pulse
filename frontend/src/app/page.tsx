@@ -39,6 +39,7 @@ export default function LandingPage() {
             <FlowPulseLogo />
           </Link>
           <div className="flex items-center gap-2">
+            <Link href="/blog" className="btn-secondary px-3 py-2 text-xs">Blog</Link>
             <Link href="/privacy" className="btn-secondary px-3 py-2 text-xs">Privacy</Link>
             <Link href="/login" className="btn-primary px-4 py-2 text-xs">Get Started</Link>
           </div>

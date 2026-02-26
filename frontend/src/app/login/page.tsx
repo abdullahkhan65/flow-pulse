@@ -1,10 +1,10 @@
 'use client';
 
 import Link from 'next/link';
-import { Suspense, useEffect } from 'react';
+import { FormEvent, Suspense, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Shield, Sparkles } from 'lucide-react';
-import { setToken } from '@/lib/api';
+import { api, setToken } from '@/lib/api';
 import { FlowPulseLogo } from '@/components/brand-logo';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api/v1';
@@ -12,15 +12,38 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api/v1
 function LoginContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
+  const [email, setEmail] = useState('Admin@flowpulse.com');
+  const [password, setPassword] = useState('Admin@123');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
   useEffect(() => {
     const token = searchParams.get('token');
     if (token) {
       setToken(token);
       const isNew = searchParams.get('new') === 'true';
-      router.replace(isNew ? '/onboarding' : '/dashboard');
+      const redirect = searchParams.get('redirect');
+      const safeRedirect = redirect && redirect.startsWith('/') ? redirect : '/dashboard';
+      router.replace(isNew ? '/onboarding' : safeRedirect);
     }
   }, [searchParams, router]);
+
+  const onAdminLogin = async (e: FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+    try {
+      const result = await api.adminLogin(email, password);
+      setToken(result.token);
+      const redirect = searchParams.get('redirect');
+      const safeRedirect = redirect && redirect.startsWith('/') ? redirect : '/dashboard/admin';
+      router.replace(safeRedirect);
+    } catch (err: any) {
+      setError(err?.message || 'Invalid admin credentials');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="mx-auto flex min-h-screen w-full max-w-6xl items-center px-5 py-10 md:px-8">
@@ -55,6 +78,35 @@ function LoginContent() {
             </svg>
             Continue with Google
           </a>
+
+          <div className="my-5 flex items-center gap-3">
+            <div className="h-px flex-1 bg-slate-200" />
+            <span className="text-xs text-slate-400">or</span>
+            <div className="h-px flex-1 bg-slate-200" />
+          </div>
+
+          <form onSubmit={onAdminLogin} className="space-y-3">
+            <input
+              type="email"
+              className="input"
+              placeholder="Admin email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+            />
+            <input
+              type="password"
+              className="input"
+              placeholder="Password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+            />
+            {error && <p className="text-xs text-red-600">{error}</p>}
+            <button type="submit" disabled={loading} className="btn-secondary w-full py-2.5 text-sm">
+              {loading ? 'Signing in...' : 'Admin Login'}
+            </button>
+          </form>
 
           <div className="mt-5 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-900">
             <p className="inline-flex items-center gap-1.5 font-semibold">

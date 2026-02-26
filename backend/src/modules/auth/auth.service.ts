@@ -1,9 +1,10 @@
-import { Injectable, Inject, ConflictException } from '@nestjs/common';
+import { Injectable, Inject, ConflictException, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { Pool } from 'pg';
 import { DATABASE_POOL } from '../../database/database.module';
 import { encrypt } from '../../common/utils/encryption';
 import { ConfigService } from '@nestjs/config';
+import * as bcrypt from 'bcryptjs';
 
 interface GoogleUserPayload {
   googleId: string;
@@ -148,5 +149,38 @@ export class AuthService {
       [userId],
     );
     return result.rows[0] || null;
+  }
+
+  async loginWithPassword(email: string, password: string) {
+    const result = await this.db.query(
+      `SELECT u.*, o.slug as org_slug
+       FROM users u
+       JOIN organizations o ON o.id = u.organization_id
+       WHERE LOWER(u.email) = LOWER($1)
+         AND u.is_active = true
+       LIMIT 1`,
+      [email],
+    );
+
+    const user = result.rows[0];
+    if (!user || !user.password_hash) {
+      throw new UnauthorizedException('Invalid credentials');
+    }
+
+    const isValid = await bcrypt.compare(password, user.password_hash);
+    if (!isValid) {
+      throw new UnauthorizedException('Invalid credentials');
+    }
+
+    if (!['owner', 'admin'].includes(user.role)) {
+      throw new UnauthorizedException('Admin access required');
+    }
+
+    await this.db.query(
+      `UPDATE users SET last_login_at = NOW() WHERE id = $1`,
+      [user.id],
+    );
+
+    return user;
   }
 }

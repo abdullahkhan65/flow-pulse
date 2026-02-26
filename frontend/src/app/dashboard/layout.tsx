@@ -3,8 +3,8 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
-import { Bell, Calendar, LayoutDashboard, LogOut, Settings, Users } from 'lucide-react';
-import { api, clearToken, User } from '@/lib/api';
+import { Bell, Calendar, LayoutDashboard, LogOut, Settings, ShieldCheck, Users } from 'lucide-react';
+import { api, clearToken, User, getStoredToken } from '@/lib/api';
 import { FlowPulseLogo } from '@/components/brand-logo';
 
 function NavItem({ href, icon: Icon, label, active }: {
@@ -35,12 +35,19 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const pathname = usePathname();
 
   useEffect(() => {
+    const token = getStoredToken();
+    if (!token) {
+      router.replace(`/login?redirect=${encodeURIComponent(pathname || '/dashboard')}`);
+      setLoading(false);
+      return;
+    }
+
     api
       .getMe()
       .then(setUser)
-      .catch(() => router.push('/login'))
+      .catch(() => router.replace(`/login?redirect=${encodeURIComponent(pathname || '/dashboard')}`))
       .finally(() => setLoading(false));
-  }, [router]);
+  }, [router, pathname]);
 
   const handleLogout = () => {
     clearToken();
@@ -79,6 +86,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             {isManager && <NavItem href="/dashboard/calendar" icon={Calendar} label="Team Calendar" active={pathname === '/dashboard/calendar'} />}
             <NavItem href="/dashboard/my-scores" icon={Bell} label="My Scores" active={pathname === '/dashboard/my-scores'} />
             <NavItem href="/dashboard/settings" icon={Settings} label="Settings" active={pathname === '/dashboard/settings'} />
+            {user && ['owner', 'admin'].includes(user.role) && (
+              <NavItem href="/dashboard/admin" icon={ShieldCheck} label="Admin Console" active={pathname === '/dashboard/admin'} />
+            )}
           </nav>
 
           <div className="mt-4 border-t border-slate-200/80 pt-4">
