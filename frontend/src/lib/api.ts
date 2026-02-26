@@ -103,6 +103,14 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ email, role }),
     }),
+  removeMember: (userId: string) =>
+    request<{ deleted: boolean }>(`/organizations/me/members/${userId}`, {
+      method: 'DELETE',
+    }),
+  resendInvite: (userId: string) =>
+    request<{ sent: boolean }>(`/organizations/me/members/${userId}/resend-invite`, {
+      method: 'POST',
+    }),
 
   // User
   updateProfile: (updates: { name?: string; timezone?: string }) =>

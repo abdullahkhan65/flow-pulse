@@ -108,10 +108,33 @@ export class OrganizationsService {
   }
 
   async removeMember(orgId: string, userId: string) {
-    await this.db.query(
-      `UPDATE users SET is_active = false WHERE id = $1 AND organization_id = $2`,
+    const result = await this.db.query(
+      `DELETE FROM users
+       WHERE id = $1 AND organization_id = $2
+       RETURNING id`,
       [userId, orgId],
     );
+    if (!result.rows[0]) throw new NotFoundException('User not found');
+    return { deleted: true };
+  }
+
+  async resendInvite(orgId: string, userId: string) {
+    const memberResult = await this.db.query(
+      `SELECT id, email, is_active FROM users WHERE id = $1 AND organization_id = $2`,
+      [userId, orgId],
+    );
+    const member = memberResult.rows[0];
+    if (!member) throw new NotFoundException('User not found');
+    if (member.is_active) {
+      throw new ForbiddenException('User is already active. Invite resend is only for pending users.');
+    }
+
+    const org = await this.findById(orgId);
+    const frontendUrl = this.configService.get<string>('frontendUrl', 'http://localhost:3000');
+    const loginUrl = `${frontendUrl}/login?invited=true`;
+    this.notificationsService.sendInviteEmail(member.email, org.name, loginUrl);
+
+    return { sent: true };
   }
 
   async updateMemberRole(orgId: string, userId: string, role: string) {
