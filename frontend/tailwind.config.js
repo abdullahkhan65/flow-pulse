@@ -5,11 +5,11 @@ module.exports = {
     extend: {
       colors: {
         brand: {
-          50: '#ecfeff',
-          100: '#cffafe',
-          500: '#0f766e',
-          600: '#0d6660',
-          700: '#0b5651',
+          50: '#e9f2ff',
+          100: '#cce0ff',
+          500: '#0c66e4',
+          600: '#0055cc',
+          700: '#09326c',
         },
         risk: {
           low: '#10B981',

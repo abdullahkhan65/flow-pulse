@@ -53,13 +53,13 @@ function SyncProgress({ onDone }: { onDone: () => void }) {
 
   return (
     <div className="text-center">
-      <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full border border-cyan-200 bg-cyan-50 text-sm font-semibold text-cyan-900">
+      <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full border border-sky-200 bg-sky-50 text-sm font-semibold text-sky-900">
         {pct}%
       </div>
       <h2 className="text-2xl font-semibold [font-family:var(--font-heading)]">Syncing your workspace</h2>
       <p className="mt-2 text-sm text-slate-600">{syncPhases[phase]}</p>
       <div className="mx-auto mt-6 h-2 w-full max-w-xs overflow-hidden rounded-full bg-slate-200">
-        <div className="h-full rounded-full bg-gradient-to-r from-teal-700 to-cyan-500 transition-all duration-500" style={{ width: `${pct}%` }} />
+        <div className="h-full rounded-full bg-gradient-to-r from-blue-700 to-sky-500 transition-all duration-500" style={{ width: `${pct}%` }} />
       </div>
     </div>
   );
@@ -98,7 +98,7 @@ export default function OnboardingPage() {
     <div className="mx-auto flex min-h-screen w-full max-w-5xl items-center px-5 py-10 md:px-8">
       <div className="w-full reveal-up">
         <div className="mb-5 flex items-center justify-between">
-          <div className="inline-flex items-center gap-2 rounded-full border border-teal-200 bg-teal-50 px-3 py-1 text-xs font-semibold text-teal-800">
+          <div className="inline-flex items-center gap-2 rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-800">
             <Sparkles className="h-3.5 w-3.5" />
             Guided setup
           </div>
@@ -107,7 +107,7 @@ export default function OnboardingPage() {
 
         <div className="mb-7 grid grid-cols-4 gap-2">
           {steps.map((label, i) => (
-            <div key={label} className={clsx('h-1.5 rounded-full transition-all', i <= step ? 'bg-teal-700' : 'bg-slate-200')} />
+            <div key={label} className={clsx('h-1.5 rounded-full transition-all', i <= step ? 'bg-blue-700' : 'bg-slate-200')} />
           ))}
         </div>
 

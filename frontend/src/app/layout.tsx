@@ -1,14 +1,14 @@
 import type { Metadata } from 'next';
-import { Manrope, Space_Grotesk } from 'next/font/google';
+import { IBM_Plex_Sans, IBM_Plex_Mono } from 'next/font/google';
 import './globals.css';
 
-const bodyFont = Manrope({
+const bodyFont = IBM_Plex_Sans({
   subsets: ['latin'],
   variable: '--font-body',
-  weight: ['400', '500', '600', '700', '800'],
+  weight: ['400', '500', '600', '700'],
 });
 
-const headingFont = Space_Grotesk({
+const headingFont = IBM_Plex_Mono({
   subsets: ['latin'],
   variable: '--font-heading',
   weight: ['500', '600', '700'],

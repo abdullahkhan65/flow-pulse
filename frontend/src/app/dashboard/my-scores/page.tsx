@@ -171,7 +171,7 @@ function WeekSoFarCard({ data, daysCollected }: {
   ];
 
   return (
-    <div className="card border-l-4 border-teal-600 p-5">
+    <div className="card border-l-4 border-blue-600 p-5">
       <div className="flex items-center justify-between mb-4">
         <div>
           <h2 className="text-sm font-semibold text-slate-700">This Week So Far</h2>
@@ -242,10 +242,10 @@ function SyncingState({ onDone }: { onDone: (data: PreviewData) => void }) {
   return (
     <div className="card flex flex-col items-center p-12 text-center">
       <div className="relative w-16 h-16 mb-6">
-        <div className="w-16 h-16 border-4 border-teal-100 rounded-full" />
-        <div className="absolute inset-0 w-16 h-16 border-4 border-teal-700 border-t-transparent rounded-full animate-spin" />
+        <div className="w-16 h-16 border-4 border-blue-100 rounded-full" />
+        <div className="absolute inset-0 w-16 h-16 border-4 border-blue-700 border-t-transparent rounded-full animate-spin" />
         <div className="absolute inset-0 flex items-center justify-center">
-          <Calendar className="w-6 h-6 text-teal-700" />
+          <Calendar className="w-6 h-6 text-blue-700" />
         </div>
       </div>
       <h3 className="mb-2 font-semibold text-slate-900 [font-family:var(--font-heading)]">Syncing your data...</h3>
@@ -256,7 +256,7 @@ function SyncingState({ onDone }: { onDone: (data: PreviewData) => void }) {
             key={i}
             className={clsx(
               'h-1 rounded-full transition-all duration-500',
-              i <= phase ? 'w-8 bg-teal-700' : 'w-2 bg-slate-200',
+              i <= phase ? 'w-8 bg-blue-700' : 'w-2 bg-slate-200',
             )}
           />
         ))}
@@ -374,7 +374,7 @@ export default function MyScoresPage() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin w-8 h-8 border-2 border-teal-700 border-t-transparent rounded-full" />
+        <div className="animate-spin w-8 h-8 border-2 border-blue-700 border-t-transparent rounded-full" />
       </div>
     );
   }
@@ -440,11 +440,11 @@ export default function MyScoresPage() {
           {!hasWeeklyScores && activePreview?.daysCollected !== undefined && (
             <div className="space-y-4">
               {/* Confidence / data collection progress banner */}
-              <div className="card p-4 flex items-start gap-3 border-cyan-200 bg-cyan-50">
-                <Info className="w-4 h-4 text-teal-700 mt-0.5 flex-shrink-0" />
+              <div className="card p-4 flex items-start gap-3 border-sky-200 bg-sky-50">
+                <Info className="w-4 h-4 text-blue-700 mt-0.5 flex-shrink-0" />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <p className="text-sm font-medium text-cyan-900">
+                    <p className="text-sm font-medium text-sky-900">
                       Week in progress
                     </p>
                     <ConfidenceBadge
@@ -453,20 +453,20 @@ export default function MyScoresPage() {
                       needed={activePreview.daysNeededForFull}
                     />
                   </div>
-                  <p className="text-xs text-cyan-800 mt-1">
+                  <p className="text-xs text-sky-800 mt-1">
                     {activePreview.daysCollected === 0
                       ? 'Your calendar was just synced. Data will appear below after the first day is processed.'
                       : `Scores shown below are estimated from ${activePreview.daysCollected} day${activePreview.daysCollected !== 1 ? 's' : ''} of data. Full scores are computed after 7 days.`}
                   </p>
                   {/* Progress bar */}
                   <div className="mt-3 flex items-center gap-2">
-                    <div className="flex-1 h-1.5 bg-cyan-200 rounded-full overflow-hidden">
+                    <div className="flex-1 h-1.5 bg-sky-200 rounded-full overflow-hidden">
                       <div
-                        className="h-full bg-cyan-600 rounded-full transition-all duration-700"
+                        className="h-full bg-sky-600 rounded-full transition-all duration-700"
                         style={{ width: `${Math.min(100, (activePreview.daysCollected / activePreview.daysNeededForFull) * 100)}%` }}
                       />
                     </div>
-                    <span className="text-xs text-cyan-700 font-medium">
+                    <span className="text-xs text-sky-700 font-medium">
                       {activePreview.daysNeededForFull - activePreview.daysCollected} day{activePreview.daysNeededForFull - activePreview.daysCollected !== 1 ? 's' : ''} until full scores
                     </span>
                   </div>
