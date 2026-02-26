@@ -10,6 +10,7 @@ import { computeAfterHoursScore } from './engines/after-hours.engine';
 import { computeBurnoutRiskScore } from './engines/burnout-risk.engine';
 import { computeEmailLoadScore } from './engines/email-load.engine';
 import { computeGithubLoadScore } from './engines/github-load.engine';
+import { computeJiraLoadScore } from './engines/jira-load.engine';
 import { DailyAggregate, RawActivityLog, WeeklyScoreResult } from './analytics.types';
 import { differenceInMinutes } from 'date-fns';
 
@@ -52,6 +53,11 @@ export interface PartialScoreResult {
     totalGithubPrReviews: number;
     totalGithubPrsCreated: number;
     githubAfterHoursEvents: number;
+    jiraTransitions: number;
+    jiraIssuesCompleted: number;
+    jiraAfterHoursTransitions: number;
+    jiraTodoCount: number;
+    jiraInProgressCount: number;
   } | null;
   signalCoverage: {
     calendar: { connected: boolean; daysWithData: number; totalEvents: number; coveragePct: number };
@@ -65,6 +71,7 @@ export interface PartialScoreResult {
     focusScore: number;
     afterHoursScore: number;
     githubLoadScore: number;
+    jiraLoadScore: number;
     burnoutRiskScore: number;
     riskLevel: 'low' | 'moderate' | 'high' | 'critical';
     riskFlags: string[];
@@ -191,6 +198,33 @@ export class AnalyticsService {
       avgEmailResponseMin = Math.round(responseTimes.reduce((a, b) => a + b, 0) / responseTimes.length);
     }
 
+    // Jira: separate transition events (changelog) from state snapshot events
+    const jiraTransitionLogs = jiraLogs.filter((l) => l.event_type === 'jira_transition');
+    const jiraStateLogs = jiraLogs.filter((l) => l.event_type === 'jira_ticket_state');
+
+    // Issues completed: prefer transition-based count; fall back to state snapshot
+    const jiraIssuesCompletedFromTransitions = jiraTransitionLogs.filter(
+      (l) => l.metadata?.isCompleted === true,
+    ).length;
+    const jiraIssuesCompletedFromSnapshot = jiraStateLogs.filter(
+      (l) => l.metadata?.statusCategory === 'Done',
+    ).length;
+    const jiraIssuesCompleted = Math.max(jiraIssuesCompletedFromTransitions, jiraIssuesCompletedFromSnapshot);
+
+    // After-hours: count from both transition events AND ticket state updates
+    const jiraAfterHoursTransitions = [
+      ...jiraTransitionLogs.filter((l) => l.is_after_hours),
+      ...jiraStateLogs.filter((l) => l.metadata?.lastUpdatedAfterHours === true),
+    ].length;
+    const jiraWeekendTransitions = [
+      ...jiraTransitionLogs.filter((l) => l.is_weekend),
+      ...jiraStateLogs.filter((l) => l.metadata?.lastUpdatedWeekend === true),
+    ].length;
+
+    // Workload snapshot: current ticket counts by status category
+    const jiraTodoCount = jiraStateLogs.filter((l) => l.metadata?.statusCategory === 'To Do').length;
+    const jiraInProgressCount = jiraStateLogs.filter((l) => l.metadata?.statusCategory === 'In Progress').length;
+
     // GitHub metrics
     const githubCommits = githubLogs.filter((l) => l.event_type === 'commit_pushed').length;
     const githubPrReviews = githubLogs.filter((l) => l.event_type === 'pr_reviewed').length;
@@ -215,9 +249,11 @@ export class AnalyticsService {
          (organization_id, user_id, date, total_meeting_minutes, meeting_count,
           back_to_back_meetings, solo_focus_minutes, slack_messages_sent, slack_channels_active,
           after_hours_events, weekend_events, jira_transitions, context_switches,
+          jira_issues_completed, jira_after_hours_transitions, jira_weekend_transitions,
+          jira_todo_count, jira_in_progress_count,
           emails_sent, emails_received, after_hours_emails, avg_email_response_min,
           github_commits, github_pr_reviews, github_prs_created, github_after_hours_events, github_weekend_events)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27)
        ON CONFLICT (organization_id, user_id, date) DO UPDATE SET
          total_meeting_minutes = EXCLUDED.total_meeting_minutes,
          meeting_count = EXCLUDED.meeting_count,
@@ -229,6 +265,11 @@ export class AnalyticsService {
          weekend_events = EXCLUDED.weekend_events,
          jira_transitions = EXCLUDED.jira_transitions,
          context_switches = EXCLUDED.context_switches,
+         jira_issues_completed = EXCLUDED.jira_issues_completed,
+         jira_after_hours_transitions = EXCLUDED.jira_after_hours_transitions,
+         jira_weekend_transitions = EXCLUDED.jira_weekend_transitions,
+         jira_todo_count = EXCLUDED.jira_todo_count,
+         jira_in_progress_count = EXCLUDED.jira_in_progress_count,
          emails_sent = EXCLUDED.emails_sent,
          emails_received = EXCLUDED.emails_received,
          after_hours_emails = EXCLUDED.after_hours_emails,
@@ -244,7 +285,9 @@ export class AnalyticsService {
         totalMeetingMinutes, meetings.length, b2bCount, soloFocusMinutes,
         slackLogs.length, slackChannels,
         afterHoursEvents, weekendEvents,
-        jiraLogs.length, contextSwitches,
+        jiraTransitionLogs.length, contextSwitches,
+        jiraIssuesCompleted, jiraAfterHoursTransitions, jiraWeekendTransitions,
+        jiraTodoCount, jiraInProgressCount,
         emailsSent, emailsReceived, afterHoursEmails, avgEmailResponseMin,
         githubCommits, githubPrReviews, githubPrsCreated, githubAfterHoursEvents, githubWeekendEvents,
       ],
@@ -291,6 +334,7 @@ export class AnalyticsService {
     const { score: afterHoursScore, breakdown: ahBreakdown } = computeAfterHoursScore(aggregates);
     const { score: emailLoadScore, breakdown: elBreakdown } = computeEmailLoadScore(aggregates);
     const { score: githubLoadScore, breakdown: ghBreakdown } = computeGithubLoadScore(aggregates);
+    const { score: jiraLoadScore, breakdown: jlBreakdown } = computeJiraLoadScore(aggregates);
 
     // 1:1 meeting count: 2-person meetings ≥ 30 min this week
     const oneOnOneCount = logs.filter(
@@ -337,6 +381,7 @@ export class AnalyticsService {
       afterHoursScore,
       emailLoadScore,
       githubLoadScore,
+      jiraLoadScore,
       previousWeekBurnoutScore: previousWeekBurnoutScore
         ? parseFloat(previousWeekBurnoutScore)
         : undefined,
@@ -350,6 +395,7 @@ export class AnalyticsService {
       afterHours: ahBreakdown,
       emailLoad: elBreakdown,
       githubLoad: { score: githubLoadScore, ...ghBreakdown },
+      jiraLoad: jlBreakdown,
       burnout: burnoutResult.weightedComponents,
       riskFlags: burnoutResult.riskFlags,
       oneOnOneCount,
@@ -541,6 +587,27 @@ export class AnalyticsService {
       };
     }
 
+    // Supplement jira workload counts from raw jira_ticket_state snapshot logs.
+    // buildDailyAggregates may have failed silently (e.g. during first-run race),
+    // so we compute workload directly from raw logs as a reliable fallback.
+    const jiraStateLogs = logs.filter(
+      (l) => l.source === 'jira' && l.event_type === 'jira_ticket_state',
+    );
+    const liveJiraTodoCount = jiraStateLogs.filter(
+      (l) => l.metadata?.statusCategory === 'To Do',
+    ).length;
+    const liveJiraInProgressCount = jiraStateLogs.filter(
+      (l) => l.metadata?.statusCategory === 'In Progress',
+    ).length;
+
+    if (jiraStateLogs.length > 0 && aggregates.length > 0) {
+      const latestAgg = aggregates[aggregates.length - 1];
+      if (!latestAgg.jira_todo_count && !latestAgg.jira_in_progress_count) {
+        latestAgg.jira_todo_count = liveJiraTodoCount;
+        latestAgg.jira_in_progress_count = liveJiraInProgressCount;
+      }
+    }
+
     const { score: meetingLoadScore } = computeMeetingLoadScore(aggregates);
     const { score: contextSwitchScore } = computeContextSwitchScore(logs);
     const { score: slackInterruptScore } = computeSlackInterruptScore(aggregates);
@@ -548,9 +615,10 @@ export class AnalyticsService {
     const { score: afterHoursScore } = computeAfterHoursScore(aggregates);
     const { score: emailLoadScore } = computeEmailLoadScore(aggregates);
     const { score: githubLoadScore } = computeGithubLoadScore(aggregates);
+    const { score: jiraLoadScore } = computeJiraLoadScore(aggregates);
     const burnoutResult = computeBurnoutRiskScore({
       meetingLoadScore, contextSwitchScore, slackInterruptScore, focusScore, afterHoursScore,
-      emailLoadScore, githubLoadScore,
+      emailLoadScore, githubLoadScore, jiraLoadScore,
     });
 
     const totalMeetings = aggregates.reduce((s, d) => s + d.meeting_count, 0);
@@ -563,6 +631,9 @@ export class AnalyticsService {
     const totalGithubPrReviews = aggregates.reduce((s, d) => s + (d.github_pr_reviews || 0), 0);
     const totalGithubPrsCreated = aggregates.reduce((s, d) => s + (d.github_prs_created || 0), 0);
     const githubAfterHoursEvents = aggregates.reduce((s, d) => s + (d.github_after_hours_events || 0), 0);
+    const jiraTransitions = aggregates.reduce((s, d) => s + (d.jira_transitions || 0), 0);
+    const jiraIssuesCompleted = aggregates.reduce((s, d) => s + (d.jira_issues_completed || 0), 0);
+    const jiraAfterHoursTransitions = aggregates.reduce((s, d) => s + (d.jira_after_hours_transitions || 0), 0);
     const responseMins = aggregates.map((d) => d.avg_email_response_min).filter((v) => v != null) as number[];
     const avgEmailResponseMin = responseMins.length > 0
       ? Math.round(responseMins.reduce((a, b) => a + b, 0) / responseMins.length)
@@ -595,6 +666,11 @@ export class AnalyticsService {
         totalGithubPrReviews,
         totalGithubPrsCreated,
         githubAfterHoursEvents,
+        jiraTransitions,
+        jiraIssuesCompleted,
+        jiraAfterHoursTransitions,
+        jiraTodoCount: liveJiraTodoCount,
+        jiraInProgressCount: liveJiraInProgressCount,
       },
       partialScores: {
         meetingLoadScore,
@@ -603,6 +679,7 @@ export class AnalyticsService {
         focusScore,
         afterHoursScore,
         githubLoadScore,
+        jiraLoadScore,
         burnoutRiskScore: burnoutResult.burnoutRiskScore,
         riskLevel: burnoutResult.riskLevel,
         riskFlags: burnoutResult.riskFlags,

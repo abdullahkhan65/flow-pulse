@@ -141,6 +141,35 @@ function WeekSoFarCard({ data, daysCollected }: {
   data: NonNullable<PreviewData['thisWeekSoFar']>;
   daysCollected: number;
 }) {
+  const activeJiraTickets = (data.jiraTodoCount ?? 0) + (data.jiraInProgressCount ?? 0);
+  const jiraAfterHours = data.jiraAfterHoursTransitions ?? 0;
+
+  const stats = [
+    { label: 'Total meetings', value: data.totalMeetings, sub: `${data.totalMeetingMinutes}min total` },
+    { label: 'Avg meeting/day', value: `${data.avgMeetingMinutesPerDay}min`, sub: data.backToBackMeetings > 0 ? `${data.backToBackMeetings} back-to-back` : 'no back-to-back' },
+    { label: 'Avg focus/day', value: `${data.avgFocusMinutesPerDay}min`, sub: `${data.totalFocusMinutes}min total` },
+    { label: 'After-hours events', value: data.afterHoursEvents, sub: data.totalSlackMessages > 0 ? `${data.totalSlackMessages} Slack msgs` : 'events' },
+    { label: 'Emails sent', value: data.totalEmailsSent, sub: `${data.totalEmailsReceived} received` },
+    {
+      label: 'Avg response time',
+      value: data.avgEmailResponseMin != null ? `${data.avgEmailResponseMin}min` : '—',
+      sub: data.afterHoursEmails > 0 ? `${data.afterHoursEmails} after-hours` : 'no after-hours emails',
+    },
+    {
+      label: 'GitHub activity',
+      value: data.totalGithubCommits + data.totalGithubPrReviews + data.totalGithubPrsCreated,
+      sub: `${data.totalGithubPrReviews} reviews · ${data.githubAfterHoursEvents} after-hours`,
+    },
+    ...(activeJiraTickets > 0 || data.jiraIssuesCompleted > 0 ? [{
+      label: 'Jira workload',
+      value: activeJiraTickets > 0 ? `${activeJiraTickets} active` : `${data.jiraIssuesCompleted} done`,
+      sub: [
+        data.jiraIssuesCompleted > 0 && `${data.jiraIssuesCompleted} completed`,
+        jiraAfterHours > 0 && `${jiraAfterHours} after-hours`,
+      ].filter(Boolean).join(' · ') || `${data.jiraTodoCount ?? 0} to-do · ${data.jiraInProgressCount ?? 0} in-progress`,
+    }] : []),
+  ];
+
   return (
     <div className="card border-l-4 border-teal-600 p-5">
       <div className="flex items-center justify-between mb-4">
@@ -150,23 +179,7 @@ function WeekSoFarCard({ data, daysCollected }: {
         </div>
       </div>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        {[
-          { label: 'Total meetings', value: data.totalMeetings, sub: `${data.totalMeetingMinutes}min total` },
-          { label: 'Avg meeting/day', value: `${data.avgMeetingMinutesPerDay}min`, sub: data.backToBackMeetings > 0 ? `${data.backToBackMeetings} back-to-back` : 'no back-to-back' },
-          { label: 'Avg focus/day', value: `${data.avgFocusMinutesPerDay}min`, sub: `${data.totalFocusMinutes}min total` },
-          { label: 'After-hours', value: data.afterHoursEvents, sub: data.totalSlackMessages > 0 ? `${data.totalSlackMessages} Slack msgs` : 'events' },
-          { label: 'Emails sent', value: data.totalEmailsSent, sub: `${data.totalEmailsReceived} received` },
-          {
-            label: 'Avg response time',
-            value: data.avgEmailResponseMin != null ? `${data.avgEmailResponseMin}min` : '—',
-            sub: data.afterHoursEmails > 0 ? `${data.afterHoursEmails} after-hours` : 'no after-hours emails',
-          },
-          {
-            label: 'GitHub activity',
-            value: data.totalGithubCommits + data.totalGithubPrReviews + data.totalGithubPrsCreated,
-            sub: `${data.totalGithubPrReviews} reviews · ${data.githubAfterHoursEvents} after-hours`,
-          },
-        ].map((item) => (
+        {stats.map((item) => (
           <div key={item.label}>
             <div className="text-lg font-semibold text-slate-900 [font-family:var(--font-heading)]">{item.value}</div>
             <div className="text-xs font-medium text-slate-600">{item.label}</div>
@@ -522,6 +535,12 @@ export default function MyScoresPage() {
                       description="Coding and review pressure"
                       color={getScoreColor(activePreview.partialScores.githubLoadScore)}
                     />
+                    <PartialScoreCard
+                      label="Jira Load"
+                      score={activePreview.partialScores.jiraLoadScore}
+                      description="After-hours ticket work & task pressure"
+                      color={getScoreColor(activePreview.partialScores.jiraLoadScore)}
+                    />
                   </div>
                 </div>
               )}
@@ -543,6 +562,12 @@ export default function MyScoresPage() {
                   score={latest.score_breakdown?.githubLoad?.score || 0}
                   description="Coding/review pressure including off-hours coding"
                   color={getScoreColor(latest.score_breakdown?.githubLoad?.score || 0)}
+                />
+                <ScoreCard
+                  label="Jira Load"
+                  score={latest.score_breakdown?.jiraLoad?.score || 0}
+                  description="After-hours ticket work and task-thrashing pressure"
+                  color={getScoreColor(latest.score_breakdown?.jiraLoad?.score || 0)}
                 />
               </div>
 

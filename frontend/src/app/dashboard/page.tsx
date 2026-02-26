@@ -10,7 +10,7 @@ import {
 import { format, parseISO } from 'date-fns';
 import {
   AlertTriangle, TrendingUp, TrendingDown, Users, Zap, Moon,
-  RefreshCw, Calendar, Clock,
+  RefreshCw, Calendar, Clock, CheckCircle2, Ticket,
 } from 'lucide-react';
 import clsx from 'clsx';
 
@@ -130,6 +130,13 @@ function WeekInProgressCard({ wip }: { wip: WeekInProgress }) {
       color: 'text-blue-600',
       bg: 'bg-blue-50',
     },
+    ...(wip.totalJiraTransitions > 0 ? [{
+      label: 'Tickets completed',
+      value: wip.totalJiraCompleted,
+      icon: CheckCircle2,
+      color: 'text-teal-600',
+      bg: 'bg-teal-50',
+    }] : []),
   ];
 
   return (
@@ -273,6 +280,14 @@ export default function TeamDashboardPage() {
           subtitle="Burnout risk ≥ 70"
           icon={Users}
         />
+        {data?.weekInProgress && data.weekInProgress.totalJiraTransitions > 0 && (
+          <StatCard
+            title="Tickets Completed"
+            value={data.weekInProgress.totalJiraCompleted}
+            subtitle={data.weekInProgress.totalJiraAfterHours > 0 ? `${data.weekInProgress.totalJiraAfterHours} after-hours` : 'This week so far'}
+            icon={Ticket}
+          />
+        )}
         <StatCard
           title="Avg Focus Score"
           value={latest ? `${Math.round(latest.avg_focus_score)}/100` : '—'}

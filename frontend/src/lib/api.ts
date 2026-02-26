@@ -51,7 +51,10 @@ export const api = {
     request<MemberScores>(`/dashboard/members/${userId}${weeks ? `?weeks=${weeks}` : ''}`),
   getMyScores: (weeks?: number) =>
     request<MemberScores>(`/dashboard/me/scores${weeks ? `?weeks=${weeks}` : ''}`),
-  getIntegrations: () => request<Integration[]>('/dashboard/integrations'),
+  getIntegrations: () => request<Integration[]>(`/dashboard/integrations`),
+
+  // Jira tickets
+  getJiraTickets: () => request<JiraTicketSummary>(`/dashboard/me/jira-tickets`),
 
   // Integrations
   connectSlack: () => request<{ url: string }>('/integrations/slack/connect'),
@@ -258,6 +261,7 @@ export interface PartialScores {
   focusScore: number;
   afterHoursScore: number;
   githubLoadScore: number;
+  jiraLoadScore: number;
   burnoutRiskScore: number;
   riskLevel: 'low' | 'moderate' | 'high' | 'critical';
   riskFlags: string[];
@@ -266,6 +270,9 @@ export interface PartialScores {
 export interface PreviewData {
   isPartial: true;
   daysCollected: number;
+  totalJiraCompleted: number;
+  totalJiraTransitions: number;
+  totalJiraAfterHours: number;
   daysNeededForFull: number;
   confidence: 'none' | 'low' | 'medium' | 'high';
   hasEnoughForFullScores: boolean;
@@ -289,6 +296,11 @@ export interface PreviewData {
     totalGithubPrReviews: number;
     totalGithubPrsCreated: number;
     githubAfterHoursEvents: number;
+    jiraTransitions: number;
+    jiraIssuesCompleted: number;
+    jiraAfterHoursTransitions: number;
+    jiraTodoCount: number;
+    jiraInProgressCount: number;
   } | null;
   signalCoverage: {
     calendar: { connected: boolean; daysWithData: number; totalEvents: number; coveragePct: number };
@@ -328,4 +340,42 @@ export interface WeekInProgress {
   totalAfterHoursEvents: number;
   totalBackToBack: number;
   daysCollected: number;
+  totalJiraCompleted: number;
+  totalJiraTransitions: number;
+  totalJiraAfterHours: number;
+}
+
+export interface JiraTicket {
+  key: string;
+  summary: string;
+  issueType: string;
+  priority: string;
+  status: string;
+  updatedAt: string;
+}
+
+export interface JiraTicketSummary {
+  connected: boolean;
+  completedThisWeek: Array<{
+    issueType: string;
+    priority: string;
+    completedAt: string;
+    afterHours: boolean;
+    weekend: boolean;
+  }>;
+  toDo: JiraTicket[];
+  inProgress: JiraTicket[];
+  workload: {
+    todoCount: number;
+    inProgressCount: number;
+    completedThisWeekCount: number;
+    afterHoursUpdates: number;
+    weekendUpdates: number;
+  };
+  velocity: {
+    completedCount: number;
+    afterHoursTransitions: number;
+    weekendTransitions: number;
+    totalTransitionsThisWeek: number;
+  };
 }

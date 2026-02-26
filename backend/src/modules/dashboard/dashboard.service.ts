@@ -152,7 +152,10 @@ export class DashboardService {
          ROUND(AVG(da.solo_focus_minutes)) as avg_focus_minutes,
          SUM(da.after_hours_events) as total_after_hours,
          SUM(da.back_to_back_meetings) as total_b2b,
-         COUNT(DISTINCT da.date) as days_collected
+         COUNT(DISTINCT da.date) as days_collected,
+         COALESCE(SUM(da.jira_issues_completed), 0) as total_jira_completed,
+         COALESCE(SUM(da.jira_transitions), 0) as total_jira_transitions,
+         COALESCE(SUM(da.jira_after_hours_transitions), 0) as total_jira_after_hours
        FROM daily_aggregates da
        JOIN users u ON u.id = da.user_id
        WHERE u.organization_id = $1
@@ -171,6 +174,9 @@ export class DashboardService {
       totalAfterHoursEvents: parseInt(row.total_after_hours) || 0,
       totalBackToBack: parseInt(row.total_b2b) || 0,
       daysCollected: parseInt(row.days_collected) || 0,
+      totalJiraCompleted: parseInt(row.total_jira_completed) || 0,
+      totalJiraTransitions: parseInt(row.total_jira_transitions) || 0,
+      totalJiraAfterHours: parseInt(row.total_jira_after_hours) || 0,
     };
   }
 
@@ -298,6 +304,12 @@ export class DashboardService {
         meetingCount: parseInt(row.meeting_count) || 0,
       };
     });
+  }
+
+  // ─── Jira Ticket Summary ───────────────────────────────────────────────────
+
+  async getJiraTicketSummary(userId: string) {
+    return this.jiraService.getJiraTicketSummary(userId);
   }
 
   // ─── Export CSV ────────────────────────────────────────────────────────────
