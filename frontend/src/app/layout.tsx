@@ -14,14 +14,66 @@ const headingFont = IBM_Plex_Mono({
   weight: ['500', '600', '700'],
 });
 
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+
 export const metadata: Metadata = {
-  title: 'FlowPulse — Team Health Analytics',
+  metadataBase: new URL(siteUrl),
+  title: {
+    default: 'FlowPulse — Team Signal Intelligence',
+    template: '%s | FlowPulse',
+  },
   description:
-    'Privacy-first productivity analytics for engineering teams. Understand meeting load, focus time, and burnout risk — without surveillance.',
+    'Privacy-first analytics for engineering teams. Track meeting load, focus health, context switching, and burnout risk without reading private content.',
+  applicationName: 'FlowPulse',
+  keywords: [
+    'engineering analytics',
+    'team health dashboard',
+    'burnout risk detection',
+    'focus time analytics',
+    'privacy-first analytics',
+  ],
+  alternates: {
+    canonical: '/',
+  },
+  category: 'technology',
+  authors: [{ name: 'FlowPulse Team' }],
+  creator: 'FlowPulse',
+  publisher: 'FlowPulse',
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      'max-image-preview': 'large',
+      'max-snippet': -1,
+      'max-video-preview': -1,
+    },
+  },
   openGraph: {
-    title: 'FlowPulse',
-    description: 'Engineering team health analytics built on privacy.',
+    title: 'FlowPulse — Team Signal Intelligence',
+    description:
+      'Make better team decisions with privacy-first signal analytics across calendar, Slack, Jira, and GitHub.',
+    url: '/',
+    siteName: 'FlowPulse',
+    locale: 'en_US',
     type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'FlowPulse — Team Signal Intelligence',
+    description:
+      'Privacy-first analytics for engineering teams: burnout risk, focus health, and workload visibility.',
+    creator: '@flowpulse',
+  },
+  manifest: '/manifest.webmanifest',
+  icons: {
+    icon: [
+      { url: '/icon?size=32', sizes: '32x32', type: 'image/png' },
+      { url: '/icon?size=192', sizes: '192x192', type: 'image/png' },
+    ],
+    apple: [{ url: '/apple-icon', sizes: '180x180', type: 'image/png' }],
+    shortcut: ['/icon?size=32'],
   },
 };
 
