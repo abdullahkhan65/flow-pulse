@@ -5,12 +5,18 @@ function getToken(): string | null {
   return localStorage.getItem('fp_token');
 }
 
+export function getStoredToken(): string | null {
+  return getToken();
+}
+
 export function setToken(token: string) {
   localStorage.setItem('fp_token', token);
+  document.cookie = `fp_token=${encodeURIComponent(token)}; Path=/; Max-Age=${60 * 60 * 24 * 7}; SameSite=Lax`;
 }
 
 export function clearToken() {
   localStorage.removeItem('fp_token');
+  document.cookie = 'fp_token=; Path=/; Max-Age=0; SameSite=Lax';
 }
 
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
@@ -38,6 +44,11 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
 export const api = {
   // Auth
   getMe: () => request<User>('/auth/me'),
+  adminLogin: (email: string, password: string) =>
+    request<{ token: string; user: User }>('/auth/admin-login', {
+      method: 'POST',
+      body: JSON.stringify({ email, password }),
+    }),
 
   // Dashboard — sync + preview (works from day 1)
   syncNow: () => request<PreviewData>('/dashboard/sync-now', { method: 'POST' }),
@@ -112,6 +123,28 @@ export const api = {
       method: 'PATCH',
       body: JSON.stringify(prefs),
     }),
+
+  // Public blog
+  getBlogPosts: (limit?: number) =>
+    request<BlogPostSummary[]>(`/blog/posts${limit ? `?limit=${limit}` : ''}`),
+  getBlogPostBySlug: (slug: string) =>
+    request<BlogPost>(`/blog/posts/${slug}`),
+
+  // Admin
+  getAdminOverview: () => request<AdminOverview>('/admin/overview'),
+  getAdminBlogPosts: () => request<BlogPost[]>('/admin/blog-posts'),
+  createAdminBlogPost: (payload: BlogPostInput) =>
+    request<BlogPost>('/admin/blog-posts', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  updateAdminBlogPost: (id: string, payload: BlogPostInput) =>
+    request<BlogPost>(`/admin/blog-posts/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    }),
+  deleteAdminBlogPost: (id: string) =>
+    request<{ deleted: boolean }>(`/admin/blog-posts/${id}`, { method: 'DELETE' }),
 };
 
 // Types
@@ -378,4 +411,67 @@ export interface JiraTicketSummary {
     weekendTransitions: number;
     totalTransitionsThisWeek: number;
   };
+}
+
+export interface BlogPostSummary {
+  id: string;
+  slug: string;
+  title: string;
+  summary: string;
+  author_name: string;
+  company_name: string | null;
+  resource_url: string | null;
+  cover_image_url: string | null;
+  tags: string[];
+  status: 'draft' | 'published';
+  published_at: string | null;
+  created_at: string;
+}
+
+export interface BlogPost extends BlogPostSummary {
+  content: string;
+  updated_at?: string;
+}
+
+export interface BlogPostInput {
+  title: string;
+  summary: string;
+  content: string;
+  authorName: string;
+  companyName?: string;
+  resourceUrl?: string;
+  coverImageUrl?: string;
+  tags?: string[];
+  status?: 'draft' | 'published';
+}
+
+export interface AdminOverview {
+  totals: {
+    organizations: number;
+    users: number;
+    connectedIntegrations: number;
+    blogPosts: {
+      total: number;
+      published: number;
+      draft: number;
+    };
+  };
+  latestUsers: Array<{
+    id: string;
+    name: string;
+    email: string;
+    role: string;
+    created_at: string;
+    organization_name: string;
+  }>;
+  latestBlogPosts: Array<{
+    id: string;
+    slug: string;
+    title: string;
+    status: 'draft' | 'published';
+    author_name: string;
+    company_name: string | null;
+    published_at: string | null;
+    created_at: string;
+  }>;
 }

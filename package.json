@@ -7,11 +7,12 @@
     "frontend"
   ],
   "scripts": {
-    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "check:node": "node -e \"const major=parseInt(process.versions.node.split('.')[0],10); if(major<20||major>=23){console.error('Unsupported Node '+process.version+'. Use Node 20.x, 21.x, or 22.x.'); process.exit(1);}\"",
+    "dev": "npm run check:node && concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
     "dev:backend": "npm --workspace=backend run start:dev",
-    "dev:frontend": "npm run clean:frontend && npm --workspace=frontend run dev",
+    "dev:frontend": "npm --workspace=frontend run dev",
     "clean:frontend": "rm -rf frontend/.next node_modules/.cache frontend/node_modules/.cache",
-    "build": "npm run build:backend && npm run build:frontend",
+    "build": "npm run check:node && npm run build:backend && npm run build:frontend",
     "build:backend": "npm --workspace=backend run build",
     "build:frontend": "npm --workspace=frontend run build",
     "db:migrate": "npm --workspace=backend run db:migrate",

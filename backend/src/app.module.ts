@@ -17,6 +17,8 @@ import { JobsModule } from './modules/jobs/jobs.module';
 import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { BillingModule } from './modules/billing/billing.module';
+import { BlogModule } from './modules/blog/blog.module';
+import { AdminModule } from './modules/admin/admin.module';
 
 @Module({
   imports: [
@@ -50,6 +52,8 @@ import { BillingModule } from './modules/billing/billing.module';
     DashboardModule,
     NotificationsModule,
     BillingModule,
+    BlogModule,
+    AdminModule,
   ],
   providers: [
     {
