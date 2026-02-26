@@ -1,10 +1,10 @@
 'use client';
 
 import useSWR from 'swr';
-import { api, TeamMember } from '@/lib/api';
+import { api, TeamMember, User } from '@/lib/api';
 import { useState } from 'react';
 import clsx from 'clsx';
-import { Search, ChevronRight, AlertTriangle, TrendingUp, TrendingDown, UserPlus, X, Send } from 'lucide-react';
+import { Search, ChevronRight, AlertTriangle, TrendingUp, TrendingDown, UserPlus, X, Send, Trash2, RotateCcw } from 'lucide-react';
 import Link from 'next/link';
 
 function ScoreBar({ score, label, color }: { score: number; label: string; color: string }) {
@@ -142,13 +142,39 @@ function InviteModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
 
 export default function TeamMembersPage() {
   const { data: members, isLoading, mutate } = useSWR<TeamMember[]>('team-members', () => api.getTeamMembers());
+  const { data: me } = useSWR<User>('me', () => api.getMe());
   const [search, setSearch] = useState('');
   const [showInvite, setShowInvite] = useState(false);
+  const [busyId, setBusyId] = useState<string | null>(null);
 
   const filtered = members?.filter(
     (m) => m.name?.toLowerCase().includes(search.toLowerCase()) ||
             m.email?.toLowerCase().includes(search.toLowerCase()),
   ) || [];
+  const activeCount = members?.filter((m) => m.is_active).length || 0;
+  const pendingCount = members?.filter((m) => !m.is_active).length || 0;
+  const isAdmin = me && ['owner', 'admin'].includes(me.role);
+
+  const onDelete = async (userId: string) => {
+    if (!confirm('Delete this user from organization? This cannot be undone.')) return;
+    setBusyId(userId);
+    try {
+      await api.removeMember(userId);
+      await mutate();
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const onResend = async (userId: string) => {
+    setBusyId(userId);
+    try {
+      await api.resendInvite(userId);
+      alert('Invite resent.');
+    } finally {
+      setBusyId(null);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -171,7 +197,7 @@ export default function TeamMembersPage() {
         <div>
           <h1 className="text-2xl font-semibold text-slate-900 [font-family:var(--font-heading)]">Team Members</h1>
           <p className="text-slate-600 text-sm mt-1">
-            Last week's health signals — <strong>not</strong> a performance ranking
+            {activeCount} active · {pendingCount} pending invites · last week's health signals
           </p>
         </div>
 
@@ -211,7 +237,7 @@ export default function TeamMembersPage() {
               <th className="text-left text-xs font-medium text-slate-500 px-4 py-3 uppercase tracking-wide w-48">Signals</th>
               <th className="text-left text-xs font-medium text-slate-500 px-4 py-3 uppercase tracking-wide">Trend</th>
               <th className="text-left text-xs font-medium text-slate-500 px-4 py-3 uppercase tracking-wide">Integrations</th>
-              <th className="px-4 py-3" />
+              <th className="text-left text-xs font-medium text-slate-500 px-4 py-3 uppercase tracking-wide">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
@@ -284,12 +310,37 @@ export default function TeamMembersPage() {
                   {member.is_active ? <IntegrationDots integrations={member.integrations || {}} /> : <span className="text-xs text-slate-400">—</span>}
                 </td>
 
-                <td className="px-4 py-4 text-right">
-                  {member.is_active && (
-                    <Link href={`/dashboard/members/${member.id}`} className="text-blue-700 hover:text-blue-800">
-                      <ChevronRight className="w-4 h-4" />
-                    </Link>
-                  )}
+                <td className="px-4 py-4">
+                  <div className="flex items-center gap-2">
+                    {member.is_active && (
+                      <Link href={`/dashboard/members/${member.id}`} className="btn-secondary px-2.5 py-1.5 text-[11px]">
+                        <ChevronRight className="h-3 w-3" />
+                        Open
+                      </Link>
+                    )}
+                    {isAdmin && (
+                      <>
+                      {!member.is_active && (
+                        <button
+                          onClick={() => onResend(member.id)}
+                          disabled={busyId === member.id}
+                          className="btn-secondary px-2.5 py-1.5 text-[11px]"
+                        >
+                          <RotateCcw className="h-3 w-3" />
+                          Resend
+                        </button>
+                      )}
+                      <button
+                        onClick={() => onDelete(member.id)}
+                        disabled={busyId === member.id}
+                        className="btn-secondary px-2.5 py-1.5 text-[11px]"
+                      >
+                        <Trash2 className="h-3 w-3" />
+                        Delete
+                      </button>
+                      </>
+                    )}
+                  </div>
                 </td>
               </tr>
             ))}

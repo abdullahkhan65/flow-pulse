@@ -49,6 +49,13 @@ export class OrganizationsController {
     return this.orgsService.removeMember(user.organizationId, userId);
   }
 
+  @Post('me/members/:userId/resend-invite')
+  @Roles('admin')
+  @ApiOperation({ summary: 'Resend invite to a pending user' })
+  resendInvite(@CurrentUser() user: JwtPayload, @Param('userId') userId: string) {
+    return this.orgsService.resendInvite(user.organizationId, userId);
+  }
+
   @Patch('me/members/:userId/role')
   @Roles('admin')
   @ApiOperation({ summary: 'Update member role' })
