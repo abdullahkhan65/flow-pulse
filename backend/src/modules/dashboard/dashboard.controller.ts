@@ -56,6 +56,23 @@ export class DashboardController {
     return this.dashboardService.getTeamMembersOverview(user.organizationId);
   }
 
+  @Post('team/sync-now')
+  @Roles('manager')
+  @ApiOperation({ summary: 'Trigger immediate sync for all active org members. Returns counts of succeeded/failed.' })
+  syncTeamNow(@CurrentUser() user: JwtPayload) {
+    return this.dashboardService.syncTeamNow(user.organizationId);
+  }
+
+  @Post('members/:userId/sync-now')
+  @Roles('manager')
+  @ApiOperation({ summary: 'Trigger immediate sync for a single team member.' })
+  syncMemberNow(
+    @CurrentUser() user: JwtPayload,
+    @Param('userId') userId: string,
+  ) {
+    return this.dashboardService.syncMemberNow(user.organizationId, userId);
+  }
+
   @Get('team/calendar')
   @Roles('manager')
   @ApiOperation({ summary: 'Get team busyness heatmap for a 7-day window' })
