@@ -4,7 +4,7 @@ import useSWR from 'swr';
 import { api, TeamMember, User } from '@/lib/api';
 import { useState } from 'react';
 import clsx from 'clsx';
-import { Search, ChevronRight, AlertTriangle, TrendingUp, TrendingDown, UserPlus, X, Send, Trash2, RotateCcw } from 'lucide-react';
+import { Search, ChevronRight, AlertTriangle, TrendingUp, TrendingDown, UserPlus, X, Send, Trash2, RotateCcw, CalendarDays, Mail, CheckSquare, GitCommitHorizontal, RefreshCw } from 'lucide-react';
 import Link from 'next/link';
 
 function ScoreBar({ score, label, color }: { score: number; label: string; color: string }) {
@@ -35,6 +35,45 @@ function RiskChip({ score }: { score: number }) {
     <span className={clsx('px-2.5 py-0.5 rounded-full text-xs font-medium border', styles[level])}>
       {level.charAt(0).toUpperCase() + level.slice(1)}
     </span>
+  );
+}
+
+function ActivityStats({ member }: { member: TeamMember }) {
+  const hasAny =
+    member.meetings_this_week > 0 ||
+    member.emails_sent_this_week > 0 ||
+    member.tasks_completed_this_week > 0 ||
+    member.commits_this_week > 0;
+
+  if (!hasAny) return <span className="text-xs text-slate-400">No data</span>;
+
+  return (
+    <div className="grid grid-cols-2 gap-x-3 gap-y-1.5">
+      {member.meetings_this_week > 0 && (
+        <div className="flex items-center gap-1 text-xs text-slate-600">
+          <CalendarDays className="w-3 h-3 text-amber-500 flex-shrink-0" />
+          <span>{member.meetings_this_week} mtgs</span>
+        </div>
+      )}
+      {(member.emails_sent_this_week > 0 || member.emails_received_this_week > 0) && (
+        <div className="flex items-center gap-1 text-xs text-slate-600">
+          <Mail className="w-3 h-3 text-sky-500 flex-shrink-0" />
+          <span>{member.emails_sent_this_week}/{member.emails_received_this_week}</span>
+        </div>
+      )}
+      {member.tasks_completed_this_week > 0 && (
+        <div className="flex items-center gap-1 text-xs text-slate-600">
+          <CheckSquare className="w-3 h-3 text-green-500 flex-shrink-0" />
+          <span>{member.tasks_completed_this_week} tasks</span>
+        </div>
+      )}
+      {member.commits_this_week > 0 && (
+        <div className="flex items-center gap-1 text-xs text-slate-600">
+          <GitCommitHorizontal className="w-3 h-3 text-violet-500 flex-shrink-0" />
+          <span>{member.commits_this_week} commits</span>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -146,6 +185,8 @@ export default function TeamMembersPage() {
   const [search, setSearch] = useState('');
   const [showInvite, setShowInvite] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [syncing, setSyncing] = useState(false);
+  const [syncResult, setSyncResult] = useState<{ synced: number; failed: number } | null>(null);
 
   const filtered = members?.filter(
     (m) => m.name?.toLowerCase().includes(search.toLowerCase()) ||
@@ -173,6 +214,18 @@ export default function TeamMembersPage() {
       alert('Invite resent.');
     } finally {
       setBusyId(null);
+    }
+  };
+
+  const onSyncAll = async () => {
+    setSyncing(true);
+    setSyncResult(null);
+    try {
+      const result = await api.syncTeamNow();
+      setSyncResult({ synced: result.synced, failed: result.failed });
+      await mutate();
+    } finally {
+      setSyncing(false);
     }
   };
 
@@ -212,12 +265,34 @@ export default function TeamMembersPage() {
               className="w-48 rounded-xl border border-slate-200 bg-white/80 pl-9 pr-4 py-2 text-sm text-slate-700 focus:outline-none focus:border-blue-600"
             />
           </div>
+          <button
+            onClick={onSyncAll}
+            disabled={syncing}
+            className="btn-secondary gap-2 py-2 px-4 text-sm"
+            title="Refresh all members' data from their connected integrations"
+          >
+            <RefreshCw className={`w-4 h-4 ${syncing ? 'animate-spin' : ''}`} />
+            {syncing ? 'Syncing…' : 'Sync All'}
+          </button>
           <button onClick={() => setShowInvite(true)} className="btn-primary gap-2 py-2 px-4 text-sm">
             <UserPlus className="w-4 h-4" />
             Invite
           </button>
         </div>
       </div>
+
+      {/* Sync result banner */}
+      {syncResult && (
+        <div className={`flex items-center justify-between rounded-xl border px-4 py-2.5 text-sm ${syncResult.failed > 0 ? 'border-amber-200 bg-amber-50 text-amber-700' : 'border-green-200 bg-green-50 text-green-700'}`}>
+          <span>
+            Sync complete — {syncResult.synced} member{syncResult.synced !== 1 ? 's' : ''} updated
+            {syncResult.failed > 0 ? `, ${syncResult.failed} failed (check integrations)` : '.'}
+          </span>
+          <button onClick={() => setSyncResult(null)} className="ml-4 text-current opacity-60 hover:opacity-100">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
 
       {/* Privacy reminder */}
       <div className="flex items-start gap-2 rounded-xl border border-sky-200 bg-sky-50 p-3">
@@ -235,6 +310,7 @@ export default function TeamMembersPage() {
               <th className="text-left text-xs font-medium text-slate-500 px-6 py-3 uppercase tracking-wide">Member</th>
               <th className="text-left text-xs font-medium text-slate-500 px-4 py-3 uppercase tracking-wide">Risk Level</th>
               <th className="text-left text-xs font-medium text-slate-500 px-4 py-3 uppercase tracking-wide w-48">Signals</th>
+              <th className="text-left text-xs font-medium text-slate-500 px-4 py-3 uppercase tracking-wide">Activity</th>
               <th className="text-left text-xs font-medium text-slate-500 px-4 py-3 uppercase tracking-wide">Trend</th>
               <th className="text-left text-xs font-medium text-slate-500 px-4 py-3 uppercase tracking-wide">Integrations</th>
               <th className="text-left text-xs font-medium text-slate-500 px-4 py-3 uppercase tracking-wide">Actions</th>
@@ -286,6 +362,14 @@ export default function TeamMembersPage() {
                     </div>
                   ) : (
                     <span className="text-xs text-slate-400">{member.is_active ? 'No data yet' : '—'}</span>
+                  )}
+                </td>
+
+                <td className="px-4 py-4">
+                  {member.is_active ? (
+                    <ActivityStats member={member} />
+                  ) : (
+                    <span className="text-xs text-slate-400">—</span>
                   )}
                 </td>
 
@@ -347,7 +431,7 @@ export default function TeamMembersPage() {
 
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={6} className="text-center py-12 text-slate-500 text-sm">
+                <td colSpan={7} className="text-center py-12 text-slate-500 text-sm">
                   {search ? 'No members found' : 'No members in your team yet'}
                 </td>
               </tr>

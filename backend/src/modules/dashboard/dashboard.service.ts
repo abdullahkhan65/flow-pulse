@@ -72,6 +72,35 @@ export class DashboardService {
     return this.analyticsService.computePartialScores(userId, orgId);
   }
 
+  // ─── Team Sync Now (manager-triggered, all org members) ───────────────────
+
+  async syncTeamNow(orgId: string) {
+    const result = await this.db.query(
+      `SELECT id FROM users WHERE organization_id = $1 AND is_active = true AND data_collection_consent = true`,
+      [orgId],
+    );
+
+    const settled = await Promise.allSettled(
+      result.rows.map((row) => this.syncNow(row.id, orgId)),
+    );
+
+    const succeeded = settled.filter((r) => r.status === 'fulfilled').length;
+    const failed = settled.filter((r) => r.status === 'rejected').length;
+
+    return { synced: succeeded, failed, total: result.rows.length };
+  }
+
+  // ─── Single Member Sync (manager-triggered) ───────────────────────────────
+
+  async syncMemberNow(orgId: string, userId: string) {
+    const check = await this.db.query(
+      `SELECT id FROM users WHERE id = $1 AND organization_id = $2 AND is_active = true`,
+      [userId, orgId],
+    );
+    if (!check.rows.length) throw new Error('Member not found in organization');
+    return this.syncNow(userId, orgId);
+  }
+
   // ─── Team Dashboard ────────────────────────────────────────────────────────
 
   async getTeamDashboard(orgId: string, weeks: number = 4) {
@@ -187,8 +216,9 @@ export class DashboardService {
       const w = startOfWeek(subWeeks(new Date(), i + 1), { weekStartsOn: 1 });
       return format(w, 'yyyy-MM-dd');
     });
+    const oldestWeekStart = weekStarts[weekStarts.length - 1];
 
-    const [weeklyScores, recentDaily] = await Promise.all([
+    const [weeklyScores, recentDaily, weeklyActivity] = await Promise.all([
       this.db.query(
         `SELECT week_start, meeting_load_score, context_switch_score,
                 slack_interrupt_score, focus_score, after_hours_score,
@@ -201,28 +231,48 @@ export class DashboardService {
       ),
       this.db.query(
         `SELECT date, total_meeting_minutes, meeting_count, solo_focus_minutes,
-                slack_messages_sent, after_hours_events, context_switches, back_to_back_meetings
+                slack_messages_sent, after_hours_events, context_switches, back_to_back_meetings,
+                emails_sent, emails_received, after_hours_emails,
+                github_commits, github_pr_reviews, github_prs_created,
+                jira_issues_completed, jira_transitions
          FROM daily_aggregates
          WHERE user_id = $1 AND organization_id = $2
            AND date >= NOW() - INTERVAL '14 days'
          ORDER BY date DESC`,
         [userId, orgId],
       ),
+      this.db.query(
+        `SELECT
+           date_trunc('week', date)::date as week_start,
+           SUM(meeting_count)::int         as meeting_count,
+           SUM(total_meeting_minutes)::int as total_meeting_minutes,
+           SUM(emails_sent)::int           as emails_sent,
+           SUM(emails_received)::int       as emails_received,
+           SUM(jira_issues_completed)::int as tasks_completed,
+           SUM(github_commits)::int        as commits,
+           SUM(github_pr_reviews)::int     as pr_reviews,
+           SUM(github_prs_created)::int    as prs_created
+         FROM daily_aggregates
+         WHERE user_id = $1 AND organization_id = $2
+           AND date >= $3::date
+         GROUP BY week_start
+         ORDER BY week_start DESC`,
+        [userId, orgId, oldestWeekStart],
+      ),
     ]);
 
     return {
       weeklyScores: weeklyScores.rows,
       recentDaily: recentDaily.rows,
+      weeklyActivity: weeklyActivity.rows,
     };
   }
 
   // ─── Team Members Overview ─────────────────────────────────────────────────
 
   async getTeamMembersOverview(orgId: string) {
-    const latestWeek = format(
-      startOfWeek(subWeeks(new Date(), 1), { weekStartsOn: 1 }),
-      'yyyy-MM-dd',
-    );
+    const latestWeekDate = startOfWeek(subWeeks(new Date(), 1), { weekStartsOn: 1 });
+    const latestWeek = format(latestWeekDate, 'yyyy-MM-dd');
 
     const result = await this.db.query(
       `SELECT
@@ -233,13 +283,37 @@ export class DashboardService {
          COALESCE(
            json_object_agg(i.type, i.status) FILTER (WHERE i.type IS NOT NULL),
            '{}'::json
-         ) as integrations
+         ) as integrations,
+         COALESCE(act.meetings_this_week, 0) as meetings_this_week,
+         COALESCE(act.emails_sent_this_week, 0) as emails_sent_this_week,
+         COALESCE(act.emails_received_this_week, 0) as emails_received_this_week,
+         COALESCE(act.tasks_completed_this_week, 0) as tasks_completed_this_week,
+         COALESCE(act.commits_this_week, 0) as commits_this_week,
+         COALESCE(act.pr_reviews_this_week, 0) as pr_reviews_this_week,
+         COALESCE(act.prs_created_this_week, 0) as prs_created_this_week
        FROM users u
        LEFT JOIN weekly_scores ws ON ws.user_id = u.id AND ws.week_start = $2
        LEFT JOIN integrations i ON i.user_id = u.id
+       LEFT JOIN (
+         SELECT
+           user_id,
+           SUM(meeting_count)::int        as meetings_this_week,
+           SUM(emails_sent)::int          as emails_sent_this_week,
+           SUM(emails_received)::int      as emails_received_this_week,
+           SUM(jira_issues_completed)::int as tasks_completed_this_week,
+           SUM(github_commits)::int       as commits_this_week,
+           SUM(github_pr_reviews)::int    as pr_reviews_this_week,
+           SUM(github_prs_created)::int   as prs_created_this_week
+         FROM daily_aggregates
+         WHERE date >= $2::date AND date < ($2::date + INTERVAL '7 days')
+         GROUP BY user_id
+       ) act ON act.user_id = u.id
        WHERE u.organization_id = $1
        GROUP BY u.id, ws.burnout_risk_score, ws.meeting_load_score, ws.focus_score,
-                ws.after_hours_score, ws.burnout_risk_delta, ws.score_breakdown
+                ws.after_hours_score, ws.burnout_risk_delta, ws.score_breakdown,
+                act.meetings_this_week, act.emails_sent_this_week, act.emails_received_this_week,
+                act.tasks_completed_this_week, act.commits_this_week, act.pr_reviews_this_week,
+                act.prs_created_this_week
        ORDER BY u.is_active DESC, ws.burnout_risk_score DESC NULLS LAST`,
       [orgId, latestWeek],
     );

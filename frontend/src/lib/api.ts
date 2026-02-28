@@ -58,6 +58,10 @@ export const api = {
   getTeamDashboard: (weeks?: number) =>
     request<TeamDashboard>(`/dashboard/team${weeks ? `?weeks=${weeks}` : ''}`),
   getTeamMembers: () => request<TeamMember[]>('/dashboard/team/members'),
+  syncTeamNow: () =>
+    request<{ synced: number; failed: number; total: number }>('/dashboard/team/sync-now', { method: 'POST' }),
+  syncMemberNow: (userId: string) =>
+    request<{ synced: number; failed: number; total: number }>(`/dashboard/members/${userId}/sync-now`, { method: 'POST' }),
   getMemberScores: (userId: string, weeks?: number) =>
     request<MemberScores>(`/dashboard/members/${userId}${weeks ? `?weeks=${weeks}` : ''}`),
   getMyScores: (weeks?: number) =>
@@ -215,11 +219,32 @@ export interface TeamMember {
   burnout_risk_delta: number;
   risk_flags: string[];
   integrations: Record<string, string>;
+  // Last-week raw activity counts
+  meetings_this_week: number;
+  emails_sent_this_week: number;
+  emails_received_this_week: number;
+  tasks_completed_this_week: number;
+  commits_this_week: number;
+  pr_reviews_this_week: number;
+  prs_created_this_week: number;
 }
 
 export interface MemberScores {
   weeklyScores: WeeklyScore[];
   recentDaily: DailyAggregate[];
+  weeklyActivity: WeeklyActivity[];
+}
+
+export interface WeeklyActivity {
+  week_start: string;
+  meeting_count: number;
+  total_meeting_minutes: number;
+  emails_sent: number;
+  emails_received: number;
+  tasks_completed: number;
+  commits: number;
+  pr_reviews: number;
+  prs_created: number;
 }
 
 export interface WeeklyScore {
@@ -242,6 +267,12 @@ export interface DailyAggregate {
   slack_messages_sent: number;
   after_hours_events: number;
   context_switches: number;
+  emails_sent: number;
+  emails_received: number;
+  github_commits: number;
+  github_pr_reviews: number;
+  github_prs_created: number;
+  jira_issues_completed: number;
 }
 
 export interface Integration {
