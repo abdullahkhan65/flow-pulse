@@ -28,7 +28,7 @@ export default function OpenGraphImage() {
           <div style={{ fontSize: 40, fontWeight: 700 }}>FlowPulse</div>
         </div>
 
-        <div style={{ maxWidth: 980 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', maxWidth: 980 }}>
           <div style={{ fontSize: 68, lineHeight: 1.05, fontWeight: 700 }}>Team Signal Intelligence</div>
           <div style={{ marginTop: 18, fontSize: 30, opacity: 0.92 }}>
             Privacy-first analytics for workload, focus health, and burnout risk.
