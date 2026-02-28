@@ -16,7 +16,7 @@ async function bootstrap() {
   // Security
   app.use(helmet());
   app.enableCors({
-    origin: configService.get('FRONTEND_URL', 'http://localhost:3000'),
+    origin: configService.get('frontendUrl', 'http://localhost:3000'),
     credentials: true,
   });
 
