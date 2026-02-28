@@ -15,8 +15,21 @@ async function bootstrap() {
 
   // Security
   app.use(helmet());
+  const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
   app.enableCors({
-    origin: configService.get('frontendUrl', 'http://localhost:3000'),
+    origin: (origin, callback) => {
+      if (
+        !origin ||
+        origin === frontendUrl ||
+        origin === 'http://localhost:3000' ||
+        origin === 'http://localhost:3001' ||
+        /\.vercel\.app$/.test(origin)
+      ) {
+        callback(null, true);
+      } else {
+        callback(null, false);
+      }
+    },
     credentials: true,
   });
 
