@@ -1,17 +1,17 @@
-import { Injectable, Inject, Logger } from '@nestjs/common';
-import { Pool } from 'pg';
-import { ConfigService } from '@nestjs/config';
-import { Octokit } from '@octokit/rest';
-import { DATABASE_POOL } from '../../../database/database.module';
-import { encrypt, decrypt } from '../../../common/utils/encryption';
-import { subDays } from 'date-fns';
-import * as crypto from 'crypto';
+import { Injectable, Inject, Logger } from "@nestjs/common";
+import { Pool } from "pg";
+import { ConfigService } from "@nestjs/config";
+import { Octokit } from "@octokit/rest";
+import { DATABASE_POOL } from "../../../database/database.module";
+import { encrypt, decrypt } from "../../../common/utils/encryption";
+import { subDays } from "date-fns";
+import * as crypto from "crypto";
 
 interface NormalizedGithubEvent {
   userId: string;
   organizationId: string;
-  source: 'github';
-  eventType: 'commit_pushed' | 'pr_created' | 'pr_reviewed' | 'issue_commented';
+  source: "github";
+  eventType: "commit_pushed" | "pr_created" | "pr_reviewed" | "issue_commented";
   occurredAt: Date;
   isAfterHours: boolean;
   isWeekend: boolean;
@@ -38,45 +38,74 @@ export class GithubService {
   ) {}
 
   private getSyncSettings(metadata: any): GithubSyncSettings {
-    const defaults: GithubSyncSettings = { timeWindowDays: 14, repoAllowlist: [] };
+    const defaults: GithubSyncSettings = {
+      timeWindowDays: 14,
+      repoAllowlist: [],
+    };
     const raw = metadata?.githubSync || {};
-    const timeWindowDays = [7, 14, 30].includes(raw.timeWindowDays) ? raw.timeWindowDays : defaults.timeWindowDays;
+    const timeWindowDays = [7, 14, 30].includes(raw.timeWindowDays)
+      ? raw.timeWindowDays
+      : defaults.timeWindowDays;
     const repoAllowlist = Array.isArray(raw.repoAllowlist)
-      ? raw.repoAllowlist.map((r: string) => String(r).trim().toLowerCase()).filter(Boolean).slice(0, 100)
+      ? raw.repoAllowlist
+          .map((r: string) => String(r).trim().toLowerCase())
+          .filter(Boolean)
+          .slice(0, 100)
       : [];
     return { timeWindowDays, repoAllowlist };
   }
 
-  private parseWorkHour(value: string | number | undefined, fallback: number): number {
-    if (typeof value === 'number' && Number.isFinite(value)) return Math.max(0, Math.min(23, value));
-    if (typeof value === 'string') {
-      const first = value.split(':')[0];
+  private parseWorkHour(
+    value: string | number | undefined,
+    fallback: number,
+  ): number {
+    if (typeof value === "number" && Number.isFinite(value))
+      return Math.max(0, Math.min(23, value));
+    if (typeof value === "string") {
+      const first = value.split(":")[0];
       const parsed = parseInt(first, 10);
       if (Number.isFinite(parsed)) return Math.max(0, Math.min(23, parsed));
     }
     return fallback;
   }
 
-  private getHourAndWeekdayInTimezone(date: Date, timeZone: string): { hour: number; weekday: number } {
-    const formatter = new Intl.DateTimeFormat('en-US', {
+  private getHourAndWeekdayInTimezone(
+    date: Date,
+    timeZone: string,
+  ): { hour: number; weekday: number } {
+    const formatter = new Intl.DateTimeFormat("en-US", {
       timeZone,
-      hour: '2-digit',
+      hour: "2-digit",
       hour12: false,
-      weekday: 'short',
+      weekday: "short",
     });
     const parts = formatter.formatToParts(date);
-    const hour = parseInt(parts.find((p) => p.type === 'hour')?.value || '0', 10);
-    const weekdayStr = parts.find((p) => p.type === 'weekday')?.value || 'Mon';
-    const weekdayMap: Record<string, number> = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
+    const hour = parseInt(
+      parts.find((p) => p.type === "hour")?.value || "0",
+      10,
+    );
+    const weekdayStr = parts.find((p) => p.type === "weekday")?.value || "Mon";
+    const weekdayMap: Record<string, number> = {
+      Sun: 0,
+      Mon: 1,
+      Tue: 2,
+      Wed: 3,
+      Thu: 4,
+      Fri: 5,
+      Sat: 6,
+    };
     return { hour, weekday: weekdayMap[weekdayStr] ?? 1 };
   }
 
   private isRepoAllowed(allowlist: string[], repoFullName: string): boolean {
     if (allowlist.length === 0) return true;
     const normalized = repoFullName.toLowerCase();
-    const nameOnly = normalized.split('/').pop() || '';
-    return allowlist.some((entry) =>
-      entry === normalized || entry === nameOnly || normalized.endsWith(`/${entry}`),
+    const nameOnly = normalized.split("/").pop() || "";
+    return allowlist.some(
+      (entry) =>
+        entry === normalized ||
+        entry === nameOnly ||
+        normalized.endsWith(`/${entry}`),
     );
   }
 
@@ -91,19 +120,29 @@ export class GithubService {
     events.push(event);
   }
 
-  private encodeState(payload: { userId: string; orgId: string; ts: number; nonce: string }): string {
-    return Buffer.from(JSON.stringify(payload)).toString('base64url');
+  private encodeState(payload: {
+    userId: string;
+    orgId: string;
+    ts: number;
+    nonce: string;
+  }): string {
+    return Buffer.from(JSON.stringify(payload)).toString("base64url");
   }
 
   private signState(encodedState: string): string {
-    const secret = this.configService.get<string>('jwt.secret') || this.configService.get<string>('encryption.key')!;
-    return crypto.createHmac('sha256', secret).update(encodedState).digest('base64url');
+    const secret =
+      this.configService.get<string>("jwt.secret") ||
+      this.configService.get<string>("encryption.key")!;
+    return crypto
+      .createHmac("sha256", secret)
+      .update(encodedState)
+      .digest("base64url");
   }
 
   getOAuthUrl(statePayload?: { userId: string; orgId: string }): string {
-    const clientId = this.configService.get<string>('github.clientId');
-    const callbackUrl = this.configService.get<string>('github.callbackUrl');
-    const scope = 'read:user,repo';
+    const clientId = this.configService.get<string>("github.clientId");
+    const callbackUrl = this.configService.get<string>("github.callbackUrl");
+    const scope = "read:user,repo";
     const base = `https://github.com/login/oauth/authorize?client_id=${clientId}&redirect_uri=${encodeURIComponent(callbackUrl!)}&scope=${scope}`;
 
     if (!statePayload) return base;
@@ -112,25 +151,33 @@ export class GithubService {
       userId: statePayload.userId,
       orgId: statePayload.orgId,
       ts: Date.now(),
-      nonce: crypto.randomBytes(12).toString('hex'),
+      nonce: crypto.randomBytes(12).toString("hex"),
     });
     const signature = this.signState(encodedState);
     const state = `${encodedState}.${signature}`;
     return `${base}&state=${encodeURIComponent(state)}`;
   }
 
-  parseAndValidateState(state: string): { userId: string; orgId: string } | null {
-    if (!state || !state.includes('.')) return null;
-    const [encodedState, signature] = state.split('.');
+  parseAndValidateState(
+    state: string,
+  ): { userId: string; orgId: string } | null {
+    if (!state || !state.includes(".")) return null;
+    const [encodedState, signature] = state.split(".");
     if (!encodedState || !signature) return null;
 
     const expectedSig = this.signState(encodedState);
     const provided = Buffer.from(signature);
     const expected = Buffer.from(expectedSig);
-    if (provided.length !== expected.length || !crypto.timingSafeEqual(provided, expected)) return null;
+    if (
+      provided.length !== expected.length ||
+      !crypto.timingSafeEqual(provided, expected)
+    )
+      return null;
 
     try {
-      const payload = JSON.parse(Buffer.from(encodedState, 'base64url').toString('utf8')) as {
+      const payload = JSON.parse(
+        Buffer.from(encodedState, "base64url").toString("utf8"),
+      ) as {
         userId: string;
         orgId: string;
         ts: number;
@@ -143,21 +190,36 @@ export class GithubService {
     }
   }
 
-  async handleCallback(userId: string, orgId: string, code: string): Promise<void> {
-    const clientId = this.configService.get<string>('github.clientId');
-    const clientSecret = this.configService.get<string>('github.clientSecret');
+  async handleCallback(
+    userId: string,
+    orgId: string,
+    code: string,
+  ): Promise<void> {
+    const clientId = this.configService.get<string>("github.clientId");
+    const clientSecret = this.configService.get<string>("github.clientSecret");
 
     // Exchange code for token
-    const response = await fetch('https://github.com/login/oauth/access_token', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-      body: JSON.stringify({ client_id: clientId, client_secret: clientSecret, code }),
-    });
+    const response = await fetch(
+      "https://github.com/login/oauth/access_token",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        body: JSON.stringify({
+          client_id: clientId,
+          client_secret: clientSecret,
+          code,
+        }),
+      },
+    );
 
-    const data = await response.json() as any;
-    if (!data.access_token) throw new Error('GitHub OAuth failed: no access token returned');
+    const data = (await response.json()) as any;
+    if (!data.access_token)
+      throw new Error("GitHub OAuth failed: no access token returned");
 
-    const encKey = this.configService.get<string>('encryption.key')!;
+    const encKey = this.configService.get<string>("encryption.key")!;
     const encToken = encrypt(data.access_token, encKey);
 
     // Get GitHub user info for metadata
@@ -172,13 +234,23 @@ export class GithubService {
          status = 'active',
          metadata = COALESCE(integrations.metadata, '{}'::jsonb) || EXCLUDED.metadata,
          updated_at = NOW()`,
-      [orgId, userId, encToken, JSON.stringify({ githubLogin: ghUser.login, githubId: ghUser.id })],
+      [
+        orgId,
+        userId,
+        encToken,
+        JSON.stringify({ githubLogin: ghUser.login, githubId: ghUser.id }),
+      ],
     );
   }
 
-  async updateSyncSettings(userId: string, settings: GithubSyncSettings): Promise<void> {
+  async updateSyncSettings(
+    userId: string,
+    settings: GithubSyncSettings,
+  ): Promise<void> {
     const normalized: GithubSyncSettings = {
-      timeWindowDays: [7, 14, 30].includes(settings.timeWindowDays) ? settings.timeWindowDays : 14,
+      timeWindowDays: [7, 14, 30].includes(settings.timeWindowDays)
+        ? settings.timeWindowDays
+        : 14,
       repoAllowlist: (settings.repoAllowlist || [])
         .map((r) => r.trim().toLowerCase())
         .filter(Boolean)
@@ -194,7 +266,10 @@ export class GithubService {
     );
   }
 
-  async syncUserActivity(userId: string, orgId: string): Promise<{ synced: number }> {
+  async syncUserActivity(
+    userId: string,
+    orgId: string,
+  ): Promise<{ synced: number }> {
     const tokenResult = await this.db.query(
       `SELECT i.access_token, i.metadata, o.settings, u.timezone AS user_timezone
        FROM integrations i
@@ -206,14 +281,14 @@ export class GithubService {
 
     if (!tokenResult.rows[0]) return { synced: 0 };
 
-    const encKey = this.configService.get<string>('encryption.key')!;
+    const encKey = this.configService.get<string>("encryption.key")!;
     const row = tokenResult.rows[0];
     const token = decrypt(row.access_token, encKey);
     const orgSettings = row.settings || {};
     const settings = this.getSyncSettings(row.metadata);
     const workStart = this.parseWorkHour(orgSettings.workdayStart, 9);
     const workEnd = this.parseWorkHour(orgSettings.workdayEnd, 18);
-    const timeZone = row.user_timezone || orgSettings.timezone || 'UTC';
+    const timeZone = row.user_timezone || orgSettings.timezone || "UTC";
 
     const octokit = new Octokit({ auth: token });
     const events: NormalizedGithubEvent[] = [];
@@ -222,33 +297,40 @@ export class GithubService {
 
     try {
       const { data: ghUser } = await octokit.users.getAuthenticated();
-      const eventsResult = await octokit.activity.listEventsForAuthenticatedUser({
-        username: ghUser.login,
-        per_page: 100,
-      });
+      const eventsResult =
+        await octokit.activity.listEventsForAuthenticatedUser({
+          username: ghUser.login,
+          per_page: 100,
+        });
 
       for (const event of eventsResult.data) {
         const occurredAt = new Date(event.created_at!);
         if (occurredAt < cutoff) continue;
 
-        const { hour, weekday } = this.getHourAndWeekdayInTimezone(occurredAt, timeZone);
+        const { hour, weekday } = this.getHourAndWeekdayInTimezone(
+          occurredAt,
+          timeZone,
+        );
         const isAfterHours = hour < workStart || hour >= workEnd;
         const isWeekend = [0, 6].includes(weekday);
-        const repoFullName = ((event.repo as any)?.name || '').toLowerCase();
+        const repoFullName = ((event.repo as any)?.name || "").toLowerCase();
         if (!this.isRepoAllowed(settings.repoAllowlist, repoFullName)) continue;
 
-        let eventType: NormalizedGithubEvent['eventType'] | null = null;
-        let eventAction = event.type || '';
+        let eventType: NormalizedGithubEvent["eventType"] | null = null;
+        let eventAction = event.type || "";
 
-        if (event.type === 'PushEvent') {
-          eventType = 'commit_pushed';
-        } else if (event.type === 'PullRequestEvent') {
-          eventType = 'pr_created';
-          eventAction = (event.payload as any)?.action || 'opened';
-        } else if (event.type === 'PullRequestReviewEvent') {
-          eventType = 'pr_reviewed';
-        } else if (event.type === 'IssueCommentEvent' || event.type === 'PullRequestReviewCommentEvent') {
-          eventType = 'issue_commented';
+        if (event.type === "PushEvent") {
+          eventType = "commit_pushed";
+        } else if (event.type === "PullRequestEvent") {
+          eventType = "pr_created";
+          eventAction = (event.payload as any)?.action || "opened";
+        } else if (event.type === "PullRequestReviewEvent") {
+          eventType = "pr_reviewed";
+        } else if (
+          event.type === "IssueCommentEvent" ||
+          event.type === "PullRequestReviewCommentEvent"
+        ) {
+          eventType = "issue_commented";
         }
 
         if (!eventType) continue;
@@ -256,7 +338,7 @@ export class GithubService {
         this.pushUniqueEvent(events, seenEvents, {
           userId,
           organizationId: orgId,
-          source: 'github',
+          source: "github",
           eventType,
           occurredAt,
           isAfterHours,
@@ -265,7 +347,7 @@ export class GithubService {
             repoId: (event.repo as any)?.id || 0, // repo ID only, no name
             repoFullName,
             eventAction,
-            isPrReview: event.type === 'PullRequestReviewEvent',
+            isPrReview: event.type === "PullRequestReviewEvent",
           },
         });
       }
@@ -276,11 +358,11 @@ export class GithubService {
       if (settings.repoAllowlist.length > 0) {
         const resolvedRepos = new Map<string, number>();
         const reposRes = await octokit.repos.listForAuthenticatedUser({
-          affiliation: 'owner,collaborator,organization_member',
+          affiliation: "owner,collaborator,organization_member",
           per_page: 100,
         });
         for (const r of reposRes.data as any[]) {
-          const fullName = (r.full_name || '').toLowerCase();
+          const fullName = (r.full_name || "").toLowerCase();
           if (this.isRepoAllowed(settings.repoAllowlist, fullName)) {
             resolvedRepos.set(fullName, r.id);
           }
@@ -288,10 +370,10 @@ export class GithubService {
 
         // If allowlist has explicit owner/repo entries not returned above, resolve directly.
         for (const entry of settings.repoAllowlist) {
-          if (!entry.includes('/')) continue;
+          if (!entry.includes("/")) continue;
           const full = entry.toLowerCase();
           if (resolvedRepos.has(full)) continue;
-          const [owner, repo] = full.split('/');
+          const [owner, repo] = full.split("/");
           if (!owner || !repo) continue;
           try {
             const repoRes = await octokit.repos.get({ owner, repo });
@@ -301,11 +383,13 @@ export class GithubService {
           }
         }
 
-        reposToQuery = Array.from(resolvedRepos.entries()).map(([full_name, id]) => ({ id, full_name }));
+        reposToQuery = Array.from(resolvedRepos.entries()).map(
+          ([full_name, id]) => ({ id, full_name }),
+        );
       }
 
       for (const repo of reposToQuery) {
-        const [owner, repoName] = repo.full_name.split('/');
+        const [owner, repoName] = repo.full_name.split("/");
         if (!owner || !repoName) continue;
 
         const commitsRes = await octokit.repos.listCommits({
@@ -316,23 +400,28 @@ export class GithubService {
           per_page: 100,
         });
         for (const commit of commitsRes.data) {
-          const commitDate = (commit.commit?.author as any)?.date || (commit.commit?.committer as any)?.date;
+          const commitDate =
+            (commit.commit?.author as any)?.date ||
+            (commit.commit?.committer as any)?.date;
           if (!commitDate) continue;
           const occurredAt = new Date(commitDate);
           if (occurredAt < cutoff) continue;
-          const { hour, weekday } = this.getHourAndWeekdayInTimezone(occurredAt, timeZone);
+          const { hour, weekday } = this.getHourAndWeekdayInTimezone(
+            occurredAt,
+            timeZone,
+          );
           this.pushUniqueEvent(events, seenEvents, {
             userId,
             organizationId: orgId,
-            source: 'github',
-            eventType: 'commit_pushed',
+            source: "github",
+            eventType: "commit_pushed",
             occurredAt,
             isAfterHours: hour < workStart || hour >= workEnd,
             isWeekend: [0, 6].includes(weekday),
             metadata: {
               repoId: repo.id,
               repoFullName: repo.full_name,
-              eventAction: 'commit',
+              eventAction: "commit",
               isPrReview: false,
             },
           });
@@ -341,29 +430,35 @@ export class GithubService {
         const pullsRes = await octokit.pulls.list({
           owner,
           repo: repoName,
-          state: 'all',
-          sort: 'updated',
-          direction: 'desc',
+          state: "all",
+          sort: "updated",
+          direction: "desc",
           per_page: 100,
         });
 
         for (const pr of pullsRes.data) {
-          if ((pr.user?.login || '').toLowerCase() !== ghUser.login.toLowerCase()) continue;
+          if (
+            (pr.user?.login || "").toLowerCase() !== ghUser.login.toLowerCase()
+          )
+            continue;
           const createdAt = new Date(pr.created_at);
           if (createdAt >= cutoff) {
-            const { hour, weekday } = this.getHourAndWeekdayInTimezone(createdAt, timeZone);
+            const { hour, weekday } = this.getHourAndWeekdayInTimezone(
+              createdAt,
+              timeZone,
+            );
             this.pushUniqueEvent(events, seenEvents, {
               userId,
               organizationId: orgId,
-              source: 'github',
-              eventType: 'pr_created',
+              source: "github",
+              eventType: "pr_created",
               occurredAt: createdAt,
               isAfterHours: hour < workStart || hour >= workEnd,
               isWeekend: [0, 6].includes(weekday),
               metadata: {
                 repoId: repo.id,
                 repoFullName: repo.full_name,
-                eventAction: 'opened',
+                eventAction: "opened",
                 isPrReview: false,
               },
             });
@@ -376,23 +471,30 @@ export class GithubService {
             per_page: 100,
           });
           for (const review of reviewsRes.data) {
-            if ((review.user?.login || '').toLowerCase() !== ghUser.login.toLowerCase()) continue;
+            if (
+              (review.user?.login || "").toLowerCase() !==
+              ghUser.login.toLowerCase()
+            )
+              continue;
             if (!review.submitted_at) continue;
             const occurredAt = new Date(review.submitted_at);
             if (occurredAt < cutoff) continue;
-            const { hour, weekday } = this.getHourAndWeekdayInTimezone(occurredAt, timeZone);
+            const { hour, weekday } = this.getHourAndWeekdayInTimezone(
+              occurredAt,
+              timeZone,
+            );
             this.pushUniqueEvent(events, seenEvents, {
               userId,
               organizationId: orgId,
-              source: 'github',
-              eventType: 'pr_reviewed',
+              source: "github",
+              eventType: "pr_reviewed",
               occurredAt,
               isAfterHours: hour < workStart || hour >= workEnd,
               isWeekend: [0, 6].includes(weekday),
               metadata: {
                 repoId: repo.id,
                 repoFullName: repo.full_name,
-                eventAction: review.state || 'reviewed',
+                eventAction: review.state || "reviewed",
                 isPrReview: true,
               },
             });
@@ -422,14 +524,26 @@ export class GithubService {
       [userId, cutoff],
     );
 
-    const values = events.map((_, i) => {
-      const b = i * 9;
-      return `($${b+1},$${b+2},$${b+3},$${b+4},$${b+5},$${b+6},$${b+7},$${b+8},$${b+9})`;
-    }).join(',');
+    const values = events
+      .map((_, i) => {
+        const b = i * 9;
+        return `($${b + 1},$${b + 2},$${b + 3},$${b + 4},$${b + 5},$${b + 6},$${b + 7},$${b + 8},$${b + 9})`;
+      })
+      .join(",");
 
     const params: any[] = [];
     for (const e of events) {
-      params.push(e.organizationId, e.userId, e.source, e.eventType, e.occurredAt, e.isAfterHours, e.isWeekend, false, JSON.stringify(e.metadata));
+      params.push(
+        e.organizationId,
+        e.userId,
+        e.source,
+        e.eventType,
+        e.occurredAt,
+        e.isAfterHours,
+        e.isWeekend,
+        false,
+        JSON.stringify(e.metadata),
+      );
     }
 
     await this.db.query(

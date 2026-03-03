@@ -1,10 +1,10 @@
-import { Injectable, Inject, ConflictException, UnauthorizedException } from '@nestjs/common';
-import { JwtService } from '@nestjs/jwt';
-import { Pool } from 'pg';
-import { DATABASE_POOL } from '../../database/database.module';
-import { encrypt } from '../../common/utils/encryption';
-import { ConfigService } from '@nestjs/config';
-import * as bcrypt from 'bcryptjs';
+import { Injectable, Inject, UnauthorizedException } from "@nestjs/common";
+import { JwtService } from "@nestjs/jwt";
+import { Pool } from "pg";
+import { DATABASE_POOL } from "../../database/database.module";
+import { encrypt } from "../../common/utils/encryption";
+import { ConfigService } from "@nestjs/config";
+import * as bcrypt from "bcryptjs";
 
 interface GoogleUserPayload {
   googleId: string;
@@ -23,8 +23,10 @@ export class AuthService {
     private configService: ConfigService,
   ) {}
 
-  async findOrCreateGoogleUser(payload: GoogleUserPayload): Promise<{ user: any; isNew: boolean }> {
-    const encKey = this.configService.get<string>('encryption.key')!;
+  async findOrCreateGoogleUser(
+    payload: GoogleUserPayload,
+  ): Promise<{ user: any; isNew: boolean }> {
+    const encKey = this.configService.get<string>("encryption.key")!;
 
     // Check if user already exists
     const existing = await this.db.query(
@@ -70,11 +72,13 @@ export class AuthService {
     // New user — create org + user
     const client = await this.db.connect();
     try {
-      await client.query('BEGIN');
+      await client.query("BEGIN");
 
       // Generate org slug from email domain
-      const emailDomain = payload.email.split('@')[1];
-      const baseSlug = emailDomain.replace(/\./g, '-').replace(/[^a-z0-9-]/g, '');
+      const emailDomain = payload.email.split("@")[1];
+      const baseSlug = emailDomain
+        .replace(/\./g, "-")
+        .replace(/[^a-z0-9-]/g, "");
       const slug = `${baseSlug}-${Date.now().toString(36)}`;
 
       const orgResult = await client.query(
@@ -96,7 +100,13 @@ export class AuthService {
         `INSERT INTO users (organization_id, email, name, avatar_url, google_id, role)
          VALUES ($1, $2, $3, $4, $5, 'owner')
          RETURNING *`,
-        [org.id, payload.email, payload.name, payload.avatarUrl, payload.googleId],
+        [
+          org.id,
+          payload.email,
+          payload.name,
+          payload.avatarUrl,
+          payload.googleId,
+        ],
       );
       const user = userResult.rows[0];
 
@@ -120,10 +130,10 @@ export class AuthService {
         );
       }
 
-      await client.query('COMMIT');
+      await client.query("COMMIT");
       return { user: { ...user, org_slug: org.slug }, isNew: true };
     } catch (err) {
-      await client.query('ROLLBACK');
+      await client.query("ROLLBACK");
       throw err;
     } finally {
       client.release();
@@ -164,16 +174,16 @@ export class AuthService {
 
     const user = result.rows[0];
     if (!user || !user.password_hash) {
-      throw new UnauthorizedException('Invalid credentials');
+      throw new UnauthorizedException("Invalid credentials");
     }
 
     const isValid = await bcrypt.compare(password, user.password_hash);
     if (!isValid) {
-      throw new UnauthorizedException('Invalid credentials');
+      throw new UnauthorizedException("Invalid credentials");
     }
 
-    if (!['owner', 'admin'].includes(user.role)) {
-      throw new UnauthorizedException('Admin access required');
+    if (!["owner", "admin"].includes(user.role)) {
+      throw new UnauthorizedException("Admin access required");
     }
 
     await this.db.query(

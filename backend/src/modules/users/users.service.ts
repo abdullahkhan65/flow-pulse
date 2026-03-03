@@ -1,6 +1,6 @@
-import { Injectable, Inject, NotFoundException } from '@nestjs/common';
-import { Pool } from 'pg';
-import { DATABASE_POOL } from '../../database/database.module';
+import { Injectable, Inject, NotFoundException } from "@nestjs/common";
+import { Pool } from "pg";
+import { DATABASE_POOL } from "../../database/database.module";
 
 @Injectable()
 export class UsersService {
@@ -13,11 +13,14 @@ export class UsersService {
        WHERE u.id = $1`,
       [id],
     );
-    if (!result.rows[0]) throw new NotFoundException('User not found');
+    if (!result.rows[0]) throw new NotFoundException("User not found");
     return result.rows[0];
   }
 
-  async updateProfile(userId: string, updates: { name?: string; timezone?: string }) {
+  async updateProfile(
+    userId: string,
+    updates: { name?: string; timezone?: string },
+  ) {
     const result = await this.db.query(
       `UPDATE users SET
          name = COALESCE($1, name),
@@ -37,18 +40,15 @@ export class UsersService {
     );
     if (!consent) {
       // Privacy: delete all collected data when user revokes consent
-      await this.db.query(
-        `DELETE FROM raw_activity_logs WHERE user_id = $1`,
-        [userId],
-      );
-      await this.db.query(
-        `DELETE FROM daily_aggregates WHERE user_id = $1`,
-        [userId],
-      );
-      await this.db.query(
-        `DELETE FROM weekly_scores WHERE user_id = $1`,
-        [userId],
-      );
+      await this.db.query(`DELETE FROM raw_activity_logs WHERE user_id = $1`, [
+        userId,
+      ]);
+      await this.db.query(`DELETE FROM daily_aggregates WHERE user_id = $1`, [
+        userId,
+      ]);
+      await this.db.query(`DELETE FROM weekly_scores WHERE user_id = $1`, [
+        userId,
+      ]);
     }
     return { consent };
   }
@@ -88,10 +88,18 @@ export class UsersService {
 
   async deleteMyData(userId: string) {
     // GDPR: full data deletion
-    await this.db.query(`DELETE FROM raw_activity_logs WHERE user_id = $1`, [userId]);
-    await this.db.query(`DELETE FROM daily_aggregates WHERE user_id = $1`, [userId]);
-    await this.db.query(`DELETE FROM weekly_scores WHERE user_id = $1`, [userId]);
-    await this.db.query(`DELETE FROM integrations WHERE user_id = $1`, [userId]);
+    await this.db.query(`DELETE FROM raw_activity_logs WHERE user_id = $1`, [
+      userId,
+    ]);
+    await this.db.query(`DELETE FROM daily_aggregates WHERE user_id = $1`, [
+      userId,
+    ]);
+    await this.db.query(`DELETE FROM weekly_scores WHERE user_id = $1`, [
+      userId,
+    ]);
+    await this.db.query(`DELETE FROM integrations WHERE user_id = $1`, [
+      userId,
+    ]);
     return { deleted: true };
   }
 

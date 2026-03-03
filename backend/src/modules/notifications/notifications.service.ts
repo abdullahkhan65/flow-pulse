@@ -1,15 +1,17 @@
-import { Injectable, Inject, Logger } from '@nestjs/common';
-import { Pool } from 'pg';
-import { ConfigService } from '@nestjs/config';
-import Mailgun from 'mailgun.js';
-import * as FormData from 'form-data';
-import { DATABASE_POOL } from '../../database/database.module';
-import { format, subWeeks, startOfWeek } from 'date-fns';
+import { Injectable, Inject, Logger } from "@nestjs/common";
+import { Pool } from "pg";
+import { ConfigService } from "@nestjs/config";
+import Mailgun from "mailgun.js";
+import * as FormData from "form-data";
+import { DATABASE_POOL } from "../../database/database.module";
+import { format, subWeeks, startOfWeek } from "date-fns";
 
 @Injectable()
 export class NotificationsService {
   private readonly logger = new Logger(NotificationsService.name);
-  private mailgun: ReturnType<InstanceType<typeof Mailgun>['client']> | undefined;
+  private mailgun:
+    | ReturnType<InstanceType<typeof Mailgun>["client"]>
+    | undefined;
   private readonly fromAddress: string;
   private readonly domain: string;
 
@@ -19,23 +21,37 @@ export class NotificationsService {
   ) {
     // Read directly from process.env as a fallback — ConfigModule may not have
     // resolved nested keys yet when the load function uses process.env at import time.
-    const apiKey = configService.get<string>('mailgun.apiKey') || process.env.MAILGUN_API_KEY;
-    const domain = configService.get<string>('mailgun.domain') || process.env.MAILGUN_DOMAIN;
+    const apiKey =
+      configService.get<string>("mailgun.apiKey") ||
+      process.env.MAILGUN_API_KEY;
+    const domain =
+      configService.get<string>("mailgun.domain") || process.env.MAILGUN_DOMAIN;
 
     if (!apiKey) {
-      this.logger.warn('MAILGUN_API_KEY is not set — email sending will be disabled');
+      this.logger.warn(
+        "MAILGUN_API_KEY is not set — email sending will be disabled",
+      );
     } else {
       const mg = new Mailgun(FormData);
-      this.mailgun = mg.client({ username: 'api', key: apiKey, url: 'https://api.mailgun.net' });
+      this.mailgun = mg.client({
+        username: "api",
+        key: apiKey,
+        url: "https://api.mailgun.net",
+      });
     }
 
-    this.domain = domain || '';
-    this.fromAddress = configService.get<string>('email.from') || process.env.EMAIL_FROM || 'FlowPulse <noreply@flowpulse.app>';
+    this.domain = domain || "";
+    this.fromAddress =
+      configService.get<string>("email.from") ||
+      process.env.EMAIL_FROM ||
+      "FlowPulse <noreply@flowpulse.app>";
   }
 
   async sendWeeklyDigests() {
-    const lastWeekStart = startOfWeek(subWeeks(new Date(), 1), { weekStartsOn: 1 });
-    const weekStr = format(lastWeekStart, 'yyyy-MM-dd');
+    const lastWeekStart = startOfWeek(subWeeks(new Date(), 1), {
+      weekStartsOn: 1,
+    });
+    const weekStr = format(lastWeekStart, "yyyy-MM-dd");
 
     // Get managers/admins who have weekly digest enabled
     const result = await this.db.query(
@@ -50,15 +66,20 @@ export class NotificationsService {
     );
 
     for (const manager of result.rows) {
-      const teamData = await this.getTeamSummaryForManager(manager.organization_id, weekStr);
+      const teamData = await this.getTeamSummaryForManager(
+        manager.organization_id,
+        weekStr,
+      );
       if (!teamData) continue;
 
       await this.sendEmail({
         to: manager.email,
-        subject: `FlowPulse Weekly Digest — Week of ${format(lastWeekStart, 'MMM d, yyyy')}`,
+        subject: `FlowPulse Weekly Digest — Week of ${format(lastWeekStart, "MMM d, yyyy")}`,
         html: generateDigestEmail(manager, teamData, lastWeekStart),
       }).catch((err) => {
-        this.logger.error(`Failed to send digest to ${manager.email}: ${err.message}`);
+        this.logger.error(
+          `Failed to send digest to ${manager.email}: ${err.message}`,
+        );
       });
     }
   }
@@ -103,7 +124,9 @@ export class NotificationsService {
           subject: `FlowPulse Alert: Team member showing burnout risk signals`,
           html: generateAlertEmail(manager, atRisk),
         }).catch((err) => {
-          this.logger.error(`Failed to send alert to ${manager.email}: ${err.message}`);
+          this.logger.error(
+            `Failed to send alert to ${manager.email}: ${err.message}`,
+          );
         });
       }
     }
@@ -127,9 +150,15 @@ export class NotificationsService {
     });
   }
 
-  private async sendEmail(options: { to: string; subject: string; html: string }) {
+  private async sendEmail(options: {
+    to: string;
+    subject: string;
+    html: string;
+  }) {
     if (!this.mailgun || !this.domain) {
-      this.logger.warn(`Email not sent to ${options.to} — Mailgun is not configured`);
+      this.logger.warn(
+        `Email not sent to ${options.to} — Mailgun is not configured`,
+      );
       return;
     }
     await this.mailgun.messages.create(this.domain, {
@@ -141,9 +170,17 @@ export class NotificationsService {
   }
 }
 
-function generateDigestEmail(manager: any, teamData: any, weekStart: Date): string {
-  const riskColor = teamData.avg_burnout_risk_score >= 70 ? '#EF4444' :
-                    teamData.avg_burnout_risk_score >= 50 ? '#F59E0B' : '#10B981';
+function generateDigestEmail(
+  manager: any,
+  teamData: any,
+  weekStart: Date,
+): string {
+  const riskColor =
+    teamData.avg_burnout_risk_score >= 70
+      ? "#EF4444"
+      : teamData.avg_burnout_risk_score >= 50
+        ? "#F59E0B"
+        : "#10B981";
   return `
 <!DOCTYPE html>
 <html>
@@ -151,10 +188,10 @@ function generateDigestEmail(manager: any, teamData: any, weekStart: Date): stri
   <div style="border-bottom: 2px solid #6366F1; padding-bottom: 16px; margin-bottom: 24px;">
     <h1 style="margin: 0; font-size: 24px; color: #6366F1;">FlowPulse</h1>
     <p style="margin: 4px 0 0; color: #6B7280;">Weekly Team Health Digest</p>
-    <p style="margin: 4px 0 0; color: #6B7280; font-size: 14px;">Week of ${format(weekStart, 'MMMM d, yyyy')}</p>
+    <p style="margin: 4px 0 0; color: #6B7280; font-size: 14px;">Week of ${format(weekStart, "MMMM d, yyyy")}</p>
   </div>
 
-  <p style="margin-bottom: 24px;">Hi ${manager.name?.split(' ')[0] || 'there'},</p>
+  <p style="margin-bottom: 24px;">Hi ${manager.name?.split(" ")[0] || "there"},</p>
 
   <div style="background: #F9FAFB; border-radius: 8px; padding: 20px; margin-bottom: 24px;">
     <h2 style="margin: 0 0 16px; font-size: 16px;">Team Overview</h2>
@@ -170,12 +207,16 @@ function generateDigestEmail(manager: any, teamData: any, weekStart: Date): stri
     </div>
   </div>
 
-  ${teamData.insights?.length > 0 ? `
+  ${
+    teamData.insights?.length > 0
+      ? `
   <h2 style="font-size: 16px; margin-bottom: 12px;">Key Insights</h2>
   <ul style="padding-left: 20px; margin-bottom: 24px;">
-    ${teamData.insights.map((i: any) => `<li style="margin-bottom: 8px;">${i.text}<br><span style="color: #6B7280; font-size: 14px;">${i.recommendation}</span></li>`).join('')}
+    ${teamData.insights.map((i: any) => `<li style="margin-bottom: 8px;">${i.text}<br><span style="color: #6B7280; font-size: 14px;">${i.recommendation}</span></li>`).join("")}
   </ul>
-  ` : ''}
+  `
+      : ""
+  }
 
   <p style="font-size: 13px; color: #6B7280; border-top: 1px solid #E5E7EB; padding-top: 16px; margin-top: 24px;">
     This digest shows <strong>team-level aggregate metrics only</strong>. No individual performance data is shared. Data collected: meeting counts, Slack message counts, and work hours — never message content.
@@ -186,7 +227,11 @@ function generateDigestEmail(manager: any, teamData: any, weekStart: Date): stri
 </html>`;
 }
 
-function generateInviteEmail(toEmail: string, orgName: string, loginUrl: string): string {
+function generateInviteEmail(
+  toEmail: string,
+  orgName: string,
+  loginUrl: string,
+): string {
   return `
 <!DOCTYPE html>
 <html>
@@ -237,12 +282,12 @@ function generateAlertEmail(manager: any, atRisk: any): string {
     <p style="margin: 8px 0 0; color: #7F1D1D; font-size: 14px;">A team member is showing elevated stress signals (risk score: ${Math.round(atRisk.burnout_risk_score)}/100)</p>
   </div>
 
-  <p>Hi ${manager.name?.split(' ')[0] || 'there'},</p>
+  <p>Hi ${manager.name?.split(" ")[0] || "there"},</p>
   <p>FlowPulse has detected elevated burnout risk signals for a member of your team. This is based on objective work pattern data — not performance judgment.</p>
 
   <p><strong>What we detected:</strong></p>
   <ul>
-    ${flags.map((f: string) => `<li>${f}</li>`).join('') || '<li>Multiple stress indicators exceeding threshold</li>'}
+    ${flags.map((f: string) => `<li>${f}</li>`).join("") || "<li>Multiple stress indicators exceeding threshold</li>"}
   </ul>
 
   <p><strong>What this means:</strong> These are patterns worth a conversation — a quick 1:1 check-in about workload can go a long way.</p>

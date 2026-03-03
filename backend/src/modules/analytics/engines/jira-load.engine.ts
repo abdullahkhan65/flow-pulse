@@ -19,7 +19,7 @@
  * the developer's current task load for sprint planning purposes.
  */
 
-import { DailyAggregate } from '../analytics.types';
+import { DailyAggregate } from "../analytics.types";
 
 export interface JiraLoadBreakdown {
   score: number;
@@ -38,24 +38,47 @@ export interface JiraLoadBreakdown {
 
 // Status strings Jira uses for "done" — covers Jira Software + Jira Service Management
 export const DONE_STATUSES = [
-  'Done', 'Closed', 'Resolved', 'Fixed', 'Complete', 'Completed',
-  'Released', 'Won\'t Do', 'Duplicate',
+  "Done",
+  "Closed",
+  "Resolved",
+  "Fixed",
+  "Complete",
+  "Completed",
+  "Released",
+  "Won't Do",
+  "Duplicate",
 ];
 
-export function computeJiraLoadScore(aggregates: DailyAggregate[]): { score: number; breakdown: JiraLoadBreakdown } {
+export function computeJiraLoadScore(aggregates: DailyAggregate[]): {
+  score: number;
+  breakdown: JiraLoadBreakdown;
+} {
   // Use the most recent day's snapshot for workload counts (current state)
   const latestWithWorkload = [...aggregates]
     .reverse()
-    .find((d) => (d.jira_todo_count ?? 0) + (d.jira_in_progress_count ?? 0) > 0);
+    .find(
+      (d) => (d.jira_todo_count ?? 0) + (d.jira_in_progress_count ?? 0) > 0,
+    );
 
   const todoCount = latestWithWorkload?.jira_todo_count ?? 0;
   const inProgressCount = latestWithWorkload?.jira_in_progress_count ?? 0;
   const activeWorkloadCount = todoCount + inProgressCount;
 
-  const daysWithTransitions = aggregates.filter((d) => d.jira_transitions > 0).length;
-  const totalTransitions = aggregates.reduce((s, d) => s + (d.jira_transitions || 0), 0);
-  const totalAfterHours = aggregates.reduce((s, d) => s + (d.jira_after_hours_transitions || 0), 0);
-  const totalWeekend = aggregates.reduce((s, d) => s + (d.jira_weekend_transitions || 0), 0);
+  const daysWithTransitions = aggregates.filter(
+    (d) => d.jira_transitions > 0,
+  ).length;
+  const totalTransitions = aggregates.reduce(
+    (s, d) => s + (d.jira_transitions || 0),
+    0,
+  );
+  const totalAfterHours = aggregates.reduce(
+    (s, d) => s + (d.jira_after_hours_transitions || 0),
+    0,
+  );
+  const totalWeekend = aggregates.reduce(
+    (s, d) => s + (d.jira_weekend_transitions || 0),
+    0,
+  );
 
   const hasAnyData = activeWorkloadCount > 0 || daysWithTransitions > 0;
 
@@ -80,26 +103,42 @@ export function computeJiraLoadScore(aggregates: DailyAggregate[]): { score: num
   // 1. Active workload component (0–30)
   // Baseline: ≤3 active tickets = 0. Cap: ≥15 active tickets = 30
   // Rationale: 15+ open tickets assigned to one person = heavy load
-  const workloadComponent = Math.min(30, Math.max(0, Math.round(((activeWorkloadCount - 3) / 12) * 30)));
+  const workloadComponent = Math.min(
+    30,
+    Math.max(0, Math.round(((activeWorkloadCount - 3) / 12) * 30)),
+  );
 
   // 2. After-hours ratio component (0–35)
   // Ratio of after-hours Jira activity to total, scaled to 0–35
   // Threshold: ≥30% after-hours activity = full 35 points
-  const afterHoursRatio = totalTransitions > 0 ? totalAfterHours / totalTransitions : 0;
-  const afterHoursComponent = Math.min(35, Math.round((afterHoursRatio / 0.3) * 35));
+  const afterHoursRatio =
+    totalTransitions > 0 ? totalAfterHours / totalTransitions : 0;
+  const afterHoursComponent = Math.min(
+    35,
+    Math.round((afterHoursRatio / 0.3) * 35),
+  );
 
   // 3. Weekend ratio component (0–20)
   // Threshold: ≥20% weekend transitions = full 20 points
-  const weekendRatio = totalTransitions > 0 ? totalWeekend / totalTransitions : 0;
+  const weekendRatio =
+    totalTransitions > 0 ? totalWeekend / totalTransitions : 0;
   const weekendComponent = Math.min(20, Math.round((weekendRatio / 0.2) * 20));
 
   // 4. Task-thrashing component (0–15)
   // High daily transition rate signals reactive/fragmented work
   // Baseline: ≤3 transitions/day = 0. Cap: ≥10 transitions/day = 15
-  const avgTransitionsPerDay = daysWithTransitions > 0 ? totalTransitions / daysWithTransitions : 0;
-  const thrashingComponent = Math.min(15, Math.max(0, Math.round(((avgTransitionsPerDay - 3) / 7) * 15)));
+  const avgTransitionsPerDay =
+    daysWithTransitions > 0 ? totalTransitions / daysWithTransitions : 0;
+  const thrashingComponent = Math.min(
+    15,
+    Math.max(0, Math.round(((avgTransitionsPerDay - 3) / 7) * 15)),
+  );
 
-  const rawScore = workloadComponent + afterHoursComponent + weekendComponent + thrashingComponent;
+  const rawScore =
+    workloadComponent +
+    afterHoursComponent +
+    weekendComponent +
+    thrashingComponent;
   const score = Math.round(Math.min(100, Math.max(0, rawScore)));
 
   return {

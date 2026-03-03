@@ -10,13 +10,8 @@
  * Short uninterrupted blocks are NOT penalized.
  */
 
-import { RawActivityLog } from '../analytics.types';
-import { differenceInMinutes } from 'date-fns';
-
-interface ActivitySegment {
-  type: 'meeting' | 'slack' | 'jira' | 'focus';
-  startTime: Date;
-}
+import { RawActivityLog } from "../analytics.types";
+import { differenceInMinutes } from "date-fns";
 
 export function computeContextSwitchScore(logs: RawActivityLog[]): {
   score: number;
@@ -25,14 +20,16 @@ export function computeContextSwitchScore(logs: RawActivityLog[]): {
   if (!logs.length) return { score: 0, breakdown: {} };
 
   // Build a time-ordered list of activity segments per day
-  const sorted = [...logs].sort((a, b) => a.occurred_at.getTime() - b.occurred_at.getTime());
+  const sorted = [...logs].sort(
+    (a, b) => a.occurred_at.getTime() - b.occurred_at.getTime(),
+  );
 
   let switches = 0;
   let prevType: string | null = null;
   let prevTime: Date | null = null;
 
   for (const log of sorted) {
-    const currentType = mapSourceToType(log.source, log.event_type);
+    const currentType = mapSourceToType(log.source);
     const currentTime = log.occurred_at;
 
     if (prevType && prevTime) {
@@ -51,7 +48,8 @@ export function computeContextSwitchScore(logs: RawActivityLog[]): {
   }
 
   // Normalize: 0 switches = 0, 5/day = moderate (40), 10+/day = heavy (80+)
-  const daysWithData = new Set(sorted.map((l) => l.occurred_at.toDateString())).size;
+  const daysWithData = new Set(sorted.map((l) => l.occurred_at.toDateString()))
+    .size;
   const switchesPerDay = daysWithData > 0 ? switches / daysWithData : 0;
 
   // Score mapping: 0 = 0, 3/day = 30, 7/day = 70, 12+/day = 100
@@ -67,9 +65,9 @@ export function computeContextSwitchScore(logs: RawActivityLog[]): {
   };
 }
 
-function mapSourceToType(source: string, eventType: string): string {
-  if (source === 'google_calendar') return 'meeting';
-  if (source === 'slack') return 'slack';
-  if (source === 'jira' || source === 'github') return 'jira';
-  return 'focus';
+function mapSourceToType(source: string): string {
+  if (source === "google_calendar") return "meeting";
+  if (source === "slack") return "slack";
+  if (source === "jira" || source === "github") return "jira";
+  return "focus";
 }

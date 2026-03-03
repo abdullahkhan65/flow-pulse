@@ -1,24 +1,24 @@
-import { Injectable } from '@nestjs/common';
-import { PassportStrategy } from '@nestjs/passport';
-import { Strategy, VerifyCallback } from 'passport-google-oauth20';
-import { ConfigService } from '@nestjs/config';
-import { AuthService } from '../auth.service';
+import { Injectable } from "@nestjs/common";
+import { PassportStrategy } from "@nestjs/passport";
+import { Strategy, VerifyCallback } from "passport-google-oauth20";
+import { ConfigService } from "@nestjs/config";
+import { AuthService } from "../auth.service";
 
 @Injectable()
-export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
+export class GoogleStrategy extends PassportStrategy(Strategy, "google") {
   constructor(
     private configService: ConfigService,
     private authService: AuthService,
   ) {
     super({
-      clientID: configService.get('google.clientId'),
-      clientSecret: configService.get('google.clientSecret'),
-      callbackURL: configService.get('google.callbackUrl'),
+      clientID: configService.get("google.clientId"),
+      clientSecret: configService.get("google.clientSecret"),
+      callbackURL: configService.get("google.callbackUrl"),
       scope: [
-        'email',
-        'profile',
-        'https://www.googleapis.com/auth/calendar.readonly',
-        'https://www.googleapis.com/auth/gmail.metadata',
+        "email",
+        "profile",
+        "https://www.googleapis.com/auth/calendar.readonly",
+        "https://www.googleapis.com/auth/gmail.metadata",
       ],
     });
   }
@@ -28,8 +28,8 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
   // Override here so Google always issues a refresh token.
   authorizationParams(): object {
     return {
-      access_type: 'offline',
-      prompt: 'consent',
+      access_type: "offline",
+      prompt: "consent",
     };
   }
 
@@ -44,7 +44,9 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
 
     // Strip Google's size param (=s96-c) to get the full-resolution photo
     const rawPhoto = photos?.[0]?.value;
-    const avatarUrl = rawPhoto ? rawPhoto.replace(/=s\d+-[a-z]$/, '') : undefined;
+    const avatarUrl = rawPhoto
+      ? rawPhoto.replace(/=s\d+-[a-z]$/, "")
+      : undefined;
 
     const { user, isNew } = await this.authService.findOrCreateGoogleUser({
       googleId: id,

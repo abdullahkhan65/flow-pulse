@@ -1,6 +1,6 @@
-import { Inject, Injectable, NotFoundException } from '@nestjs/common';
-import { Pool } from 'pg';
-import { DATABASE_POOL } from '../../database/database.module';
+import { Inject, Injectable, NotFoundException } from "@nestjs/common";
+import { Pool } from "pg";
+import { DATABASE_POOL } from "../../database/database.module";
 
 @Injectable()
 export class BlogService {
@@ -28,7 +28,7 @@ export class BlogService {
       [slug],
     );
 
-    if (!result.rows[0]) throw new NotFoundException('Article not found');
+    if (!result.rows[0]) throw new NotFoundException("Article not found");
     return result.rows[0];
   }
 }

@@ -1,13 +1,16 @@
-import { Injectable, Inject, Logger } from '@nestjs/common';
-import { Pool } from 'pg';
-import { DATABASE_POOL } from '../../database/database.module';
-import { format, subWeeks, startOfWeek, subDays } from 'date-fns';
-import { GoogleCalendarService } from '../integrations/google-calendar/google-calendar.service';
-import { GmailService } from '../integrations/gmail/gmail.service';
-import { SlackService } from '../integrations/slack/slack.service';
-import { JiraService } from '../integrations/jira/jira.service';
-import { GithubService } from '../integrations/github/github.service';
-import { AnalyticsService, PartialScoreResult } from '../analytics/analytics.service';
+import { Injectable, Inject, Logger } from "@nestjs/common";
+import { Pool } from "pg";
+import { DATABASE_POOL } from "../../database/database.module";
+import { format, subWeeks, startOfWeek, subDays } from "date-fns";
+import { GoogleCalendarService } from "../integrations/google-calendar/google-calendar.service";
+import { GmailService } from "../integrations/gmail/gmail.service";
+import { SlackService } from "../integrations/slack/slack.service";
+import { JiraService } from "../integrations/jira/jira.service";
+import { GithubService } from "../integrations/github/github.service";
+import {
+  AnalyticsService,
+  PartialScoreResult,
+} from "../analytics/analytics.service";
 
 @Injectable()
 export class DashboardService {
@@ -35,20 +38,20 @@ export class DashboardService {
 
     // Sync all connected integrations — failures don't block the response
     await Promise.allSettled([
-      types.includes('google_calendar')
+      types.includes("google_calendar")
         ? this.googleCalendarService.syncUserCalendar(userId, orgId)
         : Promise.resolve(),
       // Gmail uses the same google_calendar token — sync whenever calendar is connected
-      types.includes('google_calendar')
+      types.includes("google_calendar")
         ? this.gmailService.syncUserEmails(userId, orgId)
         : Promise.resolve(),
-      types.includes('slack')
+      types.includes("slack")
         ? this.slackService.syncUserMessages(userId, orgId)
         : Promise.resolve(),
-      types.includes('jira')
+      types.includes("jira")
         ? this.jiraService.syncUserActivity(userId, orgId)
         : Promise.resolve(),
-      types.includes('github')
+      types.includes("github")
         ? this.githubService.syncUserActivity(userId, orgId)
         : Promise.resolve(),
     ]);
@@ -59,17 +62,19 @@ export class DashboardService {
       Array.from({ length: 7 }, (_, i) =>
         this.analyticsService
           .buildDailyAggregates(userId, orgId, subDays(today, i))
-          .catch((err) => this.logger.warn(`Day -${i} aggregate failed: ${err.message}`)),
+          .catch((err) =>
+            this.logger.warn(`Day -${i} aggregate failed: ${err.message}`),
+          ),
       ),
     );
 
-    return this.analyticsService.computePartialScores(userId, orgId);
+    return this.analyticsService.computePartialScores(userId);
   }
 
   // ─── Preview: partial week scores without needing 7 full days ─────────────
 
-  async getPreview(userId: string, orgId: string): Promise<PartialScoreResult> {
-    return this.analyticsService.computePartialScores(userId, orgId);
+  async getPreview(userId: string): Promise<PartialScoreResult> {
+    return this.analyticsService.computePartialScores(userId);
   }
 
   // ─── Team Sync Now (manager-triggered, all org members) ───────────────────
@@ -84,8 +89,8 @@ export class DashboardService {
       result.rows.map((row) => this.syncNow(row.id, orgId)),
     );
 
-    const succeeded = settled.filter((r) => r.status === 'fulfilled').length;
-    const failed = settled.filter((r) => r.status === 'rejected').length;
+    const succeeded = settled.filter((r) => r.status === "fulfilled").length;
+    const failed = settled.filter((r) => r.status === "rejected").length;
 
     return { synced: succeeded, failed, total: result.rows.length };
   }
@@ -97,7 +102,7 @@ export class DashboardService {
       `SELECT id FROM users WHERE id = $1 AND organization_id = $2 AND is_active = true`,
       [userId, orgId],
     );
-    if (!check.rows.length) throw new Error('Member not found in organization');
+    if (!check.rows.length) throw new Error("Member not found in organization");
     return this.syncNow(userId, orgId);
   }
 
@@ -106,29 +111,30 @@ export class DashboardService {
   async getTeamDashboard(orgId: string, weeks: number = 4) {
     const weekStarts = Array.from({ length: weeks }, (_, i) => {
       const w = startOfWeek(subWeeks(new Date(), i + 1), { weekStartsOn: 1 });
-      return format(w, 'yyyy-MM-dd');
+      return format(w, "yyyy-MM-dd");
     });
 
-    const [teamScores, memberCount, integrationStatus, latestAnomalies] = await Promise.all([
-      this.db.query(
-        `SELECT week_start, avg_meeting_load_score, avg_context_switch_score,
+    const [teamScores, memberCount, integrationStatus, latestAnomalies] =
+      await Promise.all([
+        this.db.query(
+          `SELECT week_start, avg_meeting_load_score, avg_context_switch_score,
                 avg_slack_interrupt_score, avg_focus_score, avg_burnout_risk_score,
                 members_at_risk, total_members, insights, anomalies
          FROM team_weekly_scores
          WHERE organization_id = $1
            AND week_start = ANY($2::date[])
          ORDER BY week_start DESC`,
-        [orgId, weekStarts],
-      ),
-      this.db.query(
-        `SELECT COUNT(*) as total,
+          [orgId, weekStarts],
+        ),
+        this.db.query(
+          `SELECT COUNT(*) as total,
                 COUNT(*) FILTER (WHERE is_active = true) as active,
                 COUNT(*) FILTER (WHERE data_collection_consent = true) as consented
          FROM users WHERE organization_id = $1`,
-        [orgId],
-      ),
-      this.db.query(
-        `SELECT i.type,
+          [orgId],
+        ),
+        this.db.query(
+          `SELECT i.type,
                 COUNT(*) FILTER (WHERE i.status = 'active') as connected,
                 COUNT(*) FILTER (WHERE i.status = 'error') as errored,
                 MAX(i.last_synced_at) as last_synced
@@ -136,15 +142,15 @@ export class DashboardService {
          JOIN users u ON u.id = i.user_id
          WHERE u.organization_id = $1
          GROUP BY i.type`,
-        [orgId],
-      ),
-      this.db.query(
-        `SELECT anomalies, week_start FROM team_weekly_scores
+          [orgId],
+        ),
+        this.db.query(
+          `SELECT anomalies, week_start FROM team_weekly_scores
          WHERE organization_id = $1 AND week_start >= NOW() - INTERVAL '4 weeks'
          ORDER BY week_start DESC LIMIT 1`,
-        [orgId],
-      ),
-    ]);
+          [orgId],
+        ),
+      ]);
 
     const latestWeek = teamScores.rows[0] || null;
     const trend = teamScores.rows.slice(0, 4).map((w) => ({
@@ -164,15 +170,17 @@ export class DashboardService {
       memberStats: memberCount.rows[0],
       integrationStatus: integrationStatus.rows,
       activeAnomalies:
-        latestAnomalies.rows[0]?.anomalies?.filter((a: any) => a.severity !== 'info') || [],
+        latestAnomalies.rows[0]?.anomalies?.filter(
+          (a: any) => a.severity !== "info",
+        ) || [],
     };
   }
 
   // Current (partial) week aggregate across the team — shown when no completed week exists
   private async getTeamWeekInProgress(orgId: string) {
     const weekStart = startOfWeek(new Date(), { weekStartsOn: 1 });
-    const weekStartStr = format(weekStart, 'yyyy-MM-dd');
-    const todayStr = format(new Date(), 'yyyy-MM-dd');
+    const weekStartStr = format(weekStart, "yyyy-MM-dd");
+    const todayStr = format(new Date(), "yyyy-MM-dd");
 
     const result = await this.db.query(
       `SELECT
@@ -214,7 +222,7 @@ export class DashboardService {
   async getMemberScores(orgId: string, userId: string, weeks: number = 8) {
     const weekStarts = Array.from({ length: weeks }, (_, i) => {
       const w = startOfWeek(subWeeks(new Date(), i + 1), { weekStartsOn: 1 });
-      return format(w, 'yyyy-MM-dd');
+      return format(w, "yyyy-MM-dd");
     });
     const oldestWeekStart = weekStarts[weekStarts.length - 1];
 
@@ -271,8 +279,10 @@ export class DashboardService {
   // ─── Team Members Overview ─────────────────────────────────────────────────
 
   async getTeamMembersOverview(orgId: string) {
-    const latestWeekDate = startOfWeek(subWeeks(new Date(), 1), { weekStartsOn: 1 });
-    const latestWeek = format(latestWeekDate, 'yyyy-MM-dd');
+    const latestWeekDate = startOfWeek(subWeeks(new Date(), 1), {
+      weekStartsOn: 1,
+    });
+    const latestWeek = format(latestWeekDate, "yyyy-MM-dd");
 
     const result = await this.db.query(
       `SELECT
@@ -361,16 +371,25 @@ export class DashboardService {
 
     return result.rows.map((row) => {
       // loadLevel: based on meeting minutes + after-hours pressure
-      const meetingScore = Math.min((row.total_meeting_minutes / 240) * 100, 100);
+      const meetingScore = Math.min(
+        (row.total_meeting_minutes / 240) * 100,
+        100,
+      );
       const afterHoursScore = Math.min(row.after_hours_events * 20, 100);
       const combined = meetingScore * 0.7 + afterHoursScore * 0.3;
       const loadLevel =
-        combined >= 75 ? 'critical' : combined >= 50 ? 'high' : combined >= 25 ? 'medium' : 'low';
+        combined >= 75
+          ? "critical"
+          : combined >= 50
+            ? "high"
+            : combined >= 25
+              ? "medium"
+              : "low";
 
       return {
         userId: row.user_id,
         memberName: row.member_name,
-        date: format(row.date, 'yyyy-MM-dd'),
+        date: format(row.date, "yyyy-MM-dd"),
         loadLevel,
         meetingMinutes: parseInt(row.total_meeting_minutes) || 0,
         focusMinutes: parseInt(row.solo_focus_minutes) || 0,
@@ -403,15 +422,28 @@ export class DashboardService {
     );
 
     const headers = [
-      'Name', 'Email', 'Week', 'Meeting Load', 'Context Switch',
-      'Slack Interrupt', 'Focus Score', 'After Hours', 'Burnout Risk',
+      "Name",
+      "Email",
+      "Week",
+      "Meeting Load",
+      "Context Switch",
+      "Slack Interrupt",
+      "Focus Score",
+      "After Hours",
+      "Burnout Risk",
     ];
     const rows = result.rows.map((r) => [
-      r.name, r.email, r.week_start,
-      r.meeting_load_score, r.context_switch_score, r.slack_interrupt_score,
-      r.focus_score, r.after_hours_score, r.burnout_risk_score,
+      r.name,
+      r.email,
+      r.week_start,
+      r.meeting_load_score,
+      r.context_switch_score,
+      r.slack_interrupt_score,
+      r.focus_score,
+      r.after_hours_score,
+      r.burnout_risk_score,
     ]);
 
-    return [headers, ...rows].map((r) => r.join(',')).join('\n');
+    return [headers, ...rows].map((r) => r.join(",")).join("\n");
   }
 }

@@ -131,7 +131,7 @@ function InviteModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
               <Send className="w-5 h-5 text-green-600" />
             </div>
             <p className="text-sm font-medium text-slate-900">Invite sent to <span className="text-blue-700">{email}</span></p>
-            <p className="text-xs text-slate-500 mt-1">They'll appear here once they sign in with Google.</p>
+            <p className="text-xs text-slate-500 mt-1">They&apos;ll appear here once they sign in with Google.</p>
             <button onClick={onClose} className="btn-primary mt-4 px-5 py-2 text-sm">Done</button>
           </div>
         ) : (
@@ -250,7 +250,7 @@ export default function TeamMembersPage() {
         <div>
           <h1 className="text-2xl font-semibold text-slate-900 [font-family:var(--font-heading)]">Team Members</h1>
           <p className="text-slate-600 text-sm mt-1">
-            {activeCount} active · {pendingCount} pending invites · last week's health signals
+            {activeCount} active · {pendingCount} pending invites · last week&apos;s health signals
           </p>
         </div>
 

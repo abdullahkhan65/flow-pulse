@@ -37,7 +37,7 @@ export interface RawActivityLog {
   id: string;
   organization_id: string;
   user_id: string;
-  source: 'google_calendar' | 'slack' | 'jira' | 'gmail' | 'github';
+  source: "google_calendar" | "slack" | "jira" | "gmail" | "github";
   event_type: string;
   occurred_at: Date;
   duration_seconds?: number;
@@ -57,7 +57,7 @@ export interface WeeklyScoreResult {
   focusScore: number;
   afterHoursScore: number;
   burnoutRiskScore: number;
-  riskLevel: 'low' | 'moderate' | 'high' | 'critical';
+  riskLevel: "low" | "moderate" | "high" | "critical";
   riskFlags: string[];
   breakdown: Record<string, any>;
 }

@@ -8,7 +8,7 @@
  *   - High message count during work hours
  */
 
-import { DailyAggregate } from '../analytics.types';
+import { DailyAggregate } from "../analytics.types";
 
 export function computeSlackInterruptScore(aggregates: DailyAggregate[]): {
   score: number;
@@ -17,8 +17,10 @@ export function computeSlackInterruptScore(aggregates: DailyAggregate[]): {
   const days = aggregates.filter((d) => d.slack_messages_sent > 0);
   if (!days.length) return { score: 0, breakdown: { noSlackData: 1 } };
 
-  const avgMessagesPerDay = days.reduce((s, d) => s + d.slack_messages_sent, 0) / days.length;
-  const avgChannelsActive = days.reduce((s, d) => s + d.slack_channels_active, 0) / days.length;
+  const avgMessagesPerDay =
+    days.reduce((s, d) => s + d.slack_messages_sent, 0) / days.length;
+  const avgChannelsActive =
+    days.reduce((s, d) => s + d.slack_channels_active, 0) / days.length;
   const totalDays = aggregates.length;
 
   // Component 1: Message volume (0–50)
@@ -39,7 +41,9 @@ export function computeSlackInterruptScore(aggregates: DailyAggregate[]): {
   const weekendActivity = totalDays > 0 ? weekendDays.length / totalDays : 0;
   const consistencyScore = Math.min(20, weekendActivity * 40);
 
-  const score = Math.round(Math.max(0, Math.min(100, volumeScore + channelScore + consistencyScore)));
+  const score = Math.round(
+    Math.max(0, Math.min(100, volumeScore + channelScore + consistencyScore)),
+  );
 
   return {
     score,

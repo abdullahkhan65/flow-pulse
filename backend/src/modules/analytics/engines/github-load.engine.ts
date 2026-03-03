@@ -1,4 +1,4 @@
-import { DailyAggregate } from '../analytics.types';
+import { DailyAggregate } from "../analytics.types";
 
 interface GithubLoadBreakdown {
   volumeScore: number;
@@ -41,10 +41,17 @@ export function computeGithubLoadScore(aggregates: DailyAggregate[]): {
   }
 
   const totalEvents = aggregates.reduce(
-    (sum, day) => sum + (day.github_commits || 0) + (day.github_prs_created || 0) + (day.github_pr_reviews || 0),
+    (sum, day) =>
+      sum +
+      (day.github_commits || 0) +
+      (day.github_prs_created || 0) +
+      (day.github_pr_reviews || 0),
     0,
   );
-  const totalReviews = aggregates.reduce((sum, day) => sum + (day.github_pr_reviews || 0), 0);
+  const totalReviews = aggregates.reduce(
+    (sum, day) => sum + (day.github_pr_reviews || 0),
+    0,
+  );
   const totalAfterHoursEvents = aggregates.reduce(
     (sum, day) => sum + ((day as any).github_after_hours_events || 0),
     0,
@@ -60,11 +67,26 @@ export function computeGithubLoadScore(aggregates: DailyAggregate[]): {
   const avgWeekendEventsPerDay = totalWeekendEvents / aggregates.length;
 
   const volumeScore = Math.min(40, Math.round((avgEventsPerDay / 20) * 40));
-  const reviewBurdenScore = Math.min(25, Math.round((avgReviewsPerDay / 8) * 25));
-  const afterHoursCodingScore = Math.min(25, Math.round((avgAfterHoursEventsPerDay / 4) * 25));
-  const weekendCodingScore = Math.min(10, Math.round((avgWeekendEventsPerDay / 3) * 10));
+  const reviewBurdenScore = Math.min(
+    25,
+    Math.round((avgReviewsPerDay / 8) * 25),
+  );
+  const afterHoursCodingScore = Math.min(
+    25,
+    Math.round((avgAfterHoursEventsPerDay / 4) * 25),
+  );
+  const weekendCodingScore = Math.min(
+    10,
+    Math.round((avgWeekendEventsPerDay / 3) * 10),
+  );
 
-  const score = Math.min(100, volumeScore + reviewBurdenScore + afterHoursCodingScore + weekendCodingScore);
+  const score = Math.min(
+    100,
+    volumeScore +
+      reviewBurdenScore +
+      afterHoursCodingScore +
+      weekendCodingScore,
+  );
 
   return {
     score,
@@ -75,7 +97,8 @@ export function computeGithubLoadScore(aggregates: DailyAggregate[]): {
       weekendCodingScore,
       avgEventsPerDay: Math.round(avgEventsPerDay * 10) / 10,
       avgReviewsPerDay: Math.round(avgReviewsPerDay * 10) / 10,
-      avgAfterHoursEventsPerDay: Math.round(avgAfterHoursEventsPerDay * 10) / 10,
+      avgAfterHoursEventsPerDay:
+        Math.round(avgAfterHoursEventsPerDay * 10) / 10,
       avgWeekendEventsPerDay: Math.round(avgWeekendEventsPerDay * 10) / 10,
     },
   };
