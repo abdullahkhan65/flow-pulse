@@ -1,11 +1,11 @@
-import { Injectable, Inject, Logger, ForbiddenException } from '@nestjs/common';
-import { Pool } from 'pg';
-import { ConfigService } from '@nestjs/config';
-import Stripe from 'stripe';
-import { DATABASE_POOL } from '../../database/database.module';
+import { Injectable, Inject, Logger, ForbiddenException } from "@nestjs/common";
+import { Pool } from "pg";
+import { ConfigService } from "@nestjs/config";
+import Stripe from "stripe";
+import { DATABASE_POOL } from "../../database/database.module";
 
 export interface BillingStatus {
-  status: 'trialing' | 'active' | 'past_due' | 'canceled' | 'none';
+  status: "trialing" | "active" | "past_due" | "canceled" | "none";
   plan: string;
   seats: number;
   activeSeats: number;
@@ -24,9 +24,11 @@ export class BillingService {
     @Inject(DATABASE_POOL) private db: Pool,
     private configService: ConfigService,
   ) {
-    const secretKey = this.configService.get<string>('stripe.secretKey');
+    const secretKey = this.configService.get<string>("stripe.secretKey");
     if (secretKey) {
-      this.stripe = new Stripe(secretKey, { apiVersion: '2026-01-28.clover' as any });
+      this.stripe = new Stripe(secretKey, {
+        apiVersion: "2026-01-28.clover" as any,
+      });
     }
   }
 
@@ -47,10 +49,21 @@ export class BillingService {
 
     const row = result.rows[0];
     if (!row) {
-      return { status: 'none', plan: 'free', seats: 4, activeSeats: 0, trialEndsAt: null, currentPeriodEnd: null, cancelAtPeriodEnd: false, daysLeftInTrial: null };
+      return {
+        status: "none",
+        plan: "free",
+        seats: 4,
+        activeSeats: 0,
+        trialEndsAt: null,
+        currentPeriodEnd: null,
+        cancelAtPeriodEnd: false,
+        daysLeftInTrial: null,
+      };
     }
 
-    const trialEndsAt = row.trial_ends_at ? new Date(row.trial_ends_at).toISOString() : null;
+    const trialEndsAt = row.trial_ends_at
+      ? new Date(row.trial_ends_at).toISOString()
+      : null;
     let daysLeftInTrial: number | null = null;
     if (trialEndsAt) {
       const ms = new Date(trialEndsAt).getTime() - Date.now();
@@ -58,39 +71,48 @@ export class BillingService {
     }
 
     return {
-      status: row.status || 'trialing',
-      plan: row.plan || 'free',
+      status: row.status || "trialing",
+      plan: row.plan || "free",
       seats: row.seats || row.seat_limit || 4,
       activeSeats: parseInt(row.active_seats) || 0,
       trialEndsAt,
-      currentPeriodEnd: row.current_period_end ? new Date(row.current_period_end).toISOString() : null,
+      currentPeriodEnd: row.current_period_end
+        ? new Date(row.current_period_end).toISOString()
+        : null,
       cancelAtPeriodEnd: row.cancel_at_period_end || false,
       daysLeftInTrial,
     };
   }
 
-  async checkAccess(orgId: string): Promise<{ allowed: boolean; reason?: string }> {
+  async checkAccess(
+    orgId: string,
+  ): Promise<{ allowed: boolean; reason?: string }> {
     const status = await this.getBillingStatus(orgId);
 
-    if (status.status === 'active') return { allowed: true };
+    if (status.status === "active") return { allowed: true };
 
-    if (status.status === 'trialing') {
-      const isExpired = status.trialEndsAt && new Date(status.trialEndsAt) < new Date();
-      if (isExpired) return { allowed: false, reason: 'trial_expired' };
-      if (status.activeSeats >= status.seats) return { allowed: false, reason: 'seat_limit' };
+    if (status.status === "trialing") {
+      const isExpired =
+        status.trialEndsAt && new Date(status.trialEndsAt) < new Date();
+      if (isExpired) return { allowed: false, reason: "trial_expired" };
+      if (status.activeSeats >= status.seats)
+        return { allowed: false, reason: "seat_limit" };
       return { allowed: true };
     }
 
-    if (status.status === 'past_due') {
+    if (status.status === "past_due") {
       // Grace period: allow access but show warning
       return { allowed: true };
     }
 
-    return { allowed: false, reason: 'no_subscription' };
+    return { allowed: false, reason: "no_subscription" };
   }
 
-  async createCheckoutSession(orgId: string, seats: number): Promise<{ url: string }> {
-    if (!this.stripe) throw new ForbiddenException('Stripe not configured');
+  async createCheckoutSession(
+    orgId: string,
+    seats: number,
+  ): Promise<{ url: string }> {
+    if (!this.stripe) throw new ForbiddenException("Stripe not configured");
 
     const orgResult = await this.db.query(
       `SELECT o.billing_email, o.name, o.stripe_customer_id
@@ -98,7 +120,7 @@ export class BillingService {
       [orgId],
     );
     const org = orgResult.rows[0];
-    if (!org) throw new ForbiddenException('Organization not found');
+    if (!org) throw new ForbiddenException("Organization not found");
 
     let customerId = org.stripe_customer_id;
 
@@ -116,14 +138,17 @@ export class BillingService {
       );
     }
 
-    const frontendUrl = this.configService.get<string>('frontendUrl', 'http://localhost:3000');
+    const frontendUrl = this.configService.get<string>(
+      "frontendUrl",
+      "http://localhost:3000",
+    );
     const session = await this.stripe.checkout.sessions.create({
       customer: customerId,
-      mode: 'subscription',
-      payment_method_types: ['card'],
+      mode: "subscription",
+      payment_method_types: ["card"],
       line_items: [
         {
-          price: this.configService.get<string>('stripe.priceId'),
+          price: this.configService.get<string>("stripe.priceId"),
           quantity: seats,
         },
       ],
@@ -136,16 +161,22 @@ export class BillingService {
   }
 
   async getBillingPortalUrl(orgId: string): Promise<{ url: string }> {
-    if (!this.stripe) throw new ForbiddenException('Stripe not configured');
+    if (!this.stripe) throw new ForbiddenException("Stripe not configured");
 
     const orgResult = await this.db.query(
       `SELECT stripe_customer_id FROM organizations WHERE id = $1`,
       [orgId],
     );
     const customerId = orgResult.rows[0]?.stripe_customer_id;
-    if (!customerId) throw new ForbiddenException('No billing customer found. Please subscribe first.');
+    if (!customerId)
+      throw new ForbiddenException(
+        "No billing customer found. Please subscribe first.",
+      );
 
-    const frontendUrl = this.configService.get<string>('frontendUrl', 'http://localhost:3000');
+    const frontendUrl = this.configService.get<string>(
+      "frontendUrl",
+      "http://localhost:3000",
+    );
     const session = await this.stripe.billingPortal.sessions.create({
       customer: customerId,
       return_url: `${frontendUrl}/dashboard/settings`,
@@ -157,36 +188,48 @@ export class BillingService {
   async handleWebhook(rawBody: Buffer, signature: string): Promise<void> {
     if (!this.stripe) return;
 
-    const webhookSecret = this.configService.get<string>('stripe.webhookSecret');
+    const webhookSecret = this.configService.get<string>(
+      "stripe.webhookSecret",
+    );
     let event: Stripe.Event;
 
     try {
-      event = this.stripe.webhooks.constructEvent(rawBody, signature, webhookSecret!);
+      event = this.stripe.webhooks.constructEvent(
+        rawBody,
+        signature,
+        webhookSecret!,
+      );
     } catch (err) {
-      this.logger.error(`Webhook signature verification failed: ${err.message}`);
+      this.logger.error(
+        `Webhook signature verification failed: ${err.message}`,
+      );
       throw err;
     }
 
     switch (event.type) {
-      case 'checkout.session.completed': {
+      case "checkout.session.completed": {
         // Stripe v20: Stripe.Checkout.Session (not Stripe.CheckoutSession)
         const session = event.data.object as Stripe.Checkout.Session;
         const orgId = session.metadata?.organization_id;
-        const seats = parseInt(session.metadata?.seats || '4');
+        const seats = parseInt(session.metadata?.seats || "4");
         if (orgId && session.subscription) {
-          await this.activateSubscription(orgId, session.subscription as string, seats);
+          await this.activateSubscription(
+            orgId,
+            session.subscription as string,
+            seats,
+          );
         }
         break;
       }
 
-      case 'customer.subscription.updated': {
+      case "customer.subscription.updated": {
         const sub = event.data.object as Stripe.Subscription;
         const orgId = await this.getOrgIdByCustomer(sub.customer as string);
         if (orgId) await this.updateSubscription(orgId, sub);
         break;
       }
 
-      case 'customer.subscription.deleted': {
+      case "customer.subscription.deleted": {
         const sub = event.data.object as Stripe.Subscription;
         const orgId = await this.getOrgIdByCustomer(sub.customer as string);
         if (orgId) {
@@ -203,7 +246,7 @@ export class BillingService {
         break;
       }
 
-      case 'invoice.payment_failed': {
+      case "invoice.payment_failed": {
         const invoice = event.data.object as Stripe.Invoice;
         const orgId = await this.getOrgIdByCustomer(invoice.customer as string);
         if (orgId) {
@@ -218,7 +261,11 @@ export class BillingService {
     }
   }
 
-  private async activateSubscription(orgId: string, subscriptionId: string, seats: number) {
+  private async activateSubscription(
+    orgId: string,
+    subscriptionId: string,
+    seats: number,
+  ) {
     const sub = await this.stripe.subscriptions.retrieve(subscriptionId);
     // In Stripe API v2026-01-28.clover, current_period_end moved to SubscriptionItem
     const periodEnd = sub.items.data[0]?.current_period_end;

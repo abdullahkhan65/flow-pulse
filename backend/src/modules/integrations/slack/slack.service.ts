@@ -1,10 +1,10 @@
-import { Injectable, Inject, Logger } from '@nestjs/common';
-import { Pool } from 'pg';
-import { ConfigService } from '@nestjs/config';
-import axios from 'axios';
-import { DATABASE_POOL } from '../../../database/database.module';
-import { encrypt, decrypt } from '../../../common/utils/encryption';
-import { getHours, getDay, fromUnixTime } from 'date-fns';
+import { Injectable, Inject, Logger } from "@nestjs/common";
+import { Pool } from "pg";
+import { ConfigService } from "@nestjs/config";
+import axios from "axios";
+import { DATABASE_POOL } from "../../../database/database.module";
+import { encrypt, decrypt } from "../../../common/utils/encryption";
+import { getHours, getDay, fromUnixTime } from "date-fns";
 
 @Injectable()
 export class SlackService {
@@ -16,35 +16,41 @@ export class SlackService {
   ) {}
 
   getOAuthUrl(state: string): string {
-    const clientId = this.configService.get('slack.clientId');
-    const callbackUrl = encodeURIComponent(this.configService.get('slack.callbackUrl') ?? '');
+    const clientId = this.configService.get("slack.clientId");
+    const callbackUrl = encodeURIComponent(
+      this.configService.get("slack.callbackUrl") ?? "",
+    );
     const scopes = [
-      'users:read',
-      'users:read.email',
-      'channels:history',
-      'channels:read',
-      'im:history',
-      'mpim:history',
-      'groups:history',
-    ].join(',');
+      "users:read",
+      "users:read.email",
+      "channels:history",
+      "channels:read",
+      "im:history",
+      "mpim:history",
+      "groups:history",
+    ].join(",");
 
     return `https://slack.com/oauth/v2/authorize?client_id=${clientId}&scope=${scopes}&redirect_uri=${callbackUrl}&state=${state}`;
   }
 
   async handleCallback(code: string, userId: string, orgId: string) {
-    const response = await axios.post('https://slack.com/api/oauth.v2.access', null, {
-      params: {
-        client_id: this.configService.get('slack.clientId'),
-        client_secret: this.configService.get('slack.clientSecret'),
-        code,
-        redirect_uri: this.configService.get('slack.callbackUrl'),
+    const response = await axios.post(
+      "https://slack.com/api/oauth.v2.access",
+      null,
+      {
+        params: {
+          client_id: this.configService.get("slack.clientId"),
+          client_secret: this.configService.get("slack.clientSecret"),
+          code,
+          redirect_uri: this.configService.get("slack.callbackUrl"),
+        },
       },
-    });
+    );
 
     const data = response.data;
     if (!data.ok) throw new Error(`Slack OAuth error: ${data.error}`);
 
-    const encKey = this.configService.get<string>('encryption.key')!;
+    const encKey = this.configService.get<string>("encryption.key")!;
     const encToken = encrypt(data.access_token, encKey);
 
     await this.db.query(
@@ -70,10 +76,10 @@ export class SlackService {
 
     // Store slack_id on user
     if (data.authed_user?.id) {
-      await this.db.query(
-        `UPDATE users SET slack_id = $1 WHERE id = $2`,
-        [data.authed_user.id, userId],
-      );
+      await this.db.query(`UPDATE users SET slack_id = $1 WHERE id = $2`, [
+        data.authed_user.id,
+        userId,
+      ]);
     }
 
     return { connected: true, team: data.team?.name };
@@ -97,7 +103,7 @@ export class SlackService {
     );
     if (!result.rows[0]) return { synced: 0 };
 
-    const encKey = this.configService.get<string>('encryption.key')!;
+    const encKey = this.configService.get<string>("encryption.key")!;
     const token = decrypt(result.rows[0].access_token, encKey);
     const metadata = result.rows[0].metadata;
     const slackUserId = metadata?.slackUserId;
@@ -107,17 +113,24 @@ export class SlackService {
       [orgId],
     );
     const orgSettings = orgResult.rows[0]?.settings || {};
-    const workdayStart = parseInt(orgSettings?.workdayStart?.split(':')[0] || '9');
-    const workdayEnd = parseInt(orgSettings?.workdayEnd?.split(':')[0] || '18');
+    const workdayStart = parseInt(
+      orgSettings?.workdayStart?.split(":")[0] || "9",
+    );
+    const workdayEnd = parseInt(orgSettings?.workdayEnd?.split(":")[0] || "18");
 
     // Fetch user's conversations
-    const channelsResponse = await axios.get('https://slack.com/api/conversations.list', {
-      headers: { Authorization: `Bearer ${token}` },
-      params: { types: 'public_channel,private_channel', limit: 100 },
-    });
+    const channelsResponse = await axios.get(
+      "https://slack.com/api/conversations.list",
+      {
+        headers: { Authorization: `Bearer ${token}` },
+        params: { types: "public_channel,private_channel", limit: 100 },
+      },
+    );
 
     if (!channelsResponse.data.ok) {
-      this.logger.warn(`Slack API error for user ${userId}: ${channelsResponse.data.error}`);
+      this.logger.warn(
+        `Slack API error for user ${userId}: ${channelsResponse.data.error}`,
+      );
       return { synced: 0 };
     }
 
@@ -127,12 +140,16 @@ export class SlackService {
     let totalMessages = 0;
     const logs: any[] = [];
 
-    for (const channel of channels.slice(0, 20)) { // Limit to 20 channels
+    for (const channel of channels.slice(0, 20)) {
+      // Limit to 20 channels
       try {
-        const historyResponse = await axios.get('https://slack.com/api/conversations.history', {
-          headers: { Authorization: `Bearer ${token}` },
-          params: { channel: channel.id, oldest, limit: 200 },
-        });
+        const historyResponse = await axios.get(
+          "https://slack.com/api/conversations.history",
+          {
+            headers: { Authorization: `Bearer ${token}` },
+            params: { channel: channel.id, oldest, limit: 200 },
+          },
+        );
 
         if (!historyResponse.data.ok) continue;
 
@@ -140,7 +157,8 @@ export class SlackService {
 
         // Only count messages sent BY this user — no content stored
         const userMessages = messages.filter(
-          (m: any) => m.user === slackUserId && m.type === 'message' && !m.bot_id,
+          (m: any) =>
+            m.user === slackUserId && m.type === "message" && !m.bot_id,
         );
 
         for (const msg of userMessages) {
@@ -148,13 +166,13 @@ export class SlackService {
           logs.push({
             organizationId: orgId,
             userId,
-            source: 'slack',
-            eventType: 'slack_message',
+            source: "slack",
+            eventType: "slack_message",
             occurredAt: msgDate,
             isAfterHours: this.isAfterHours(msgDate, workdayStart, workdayEnd),
             isWeekend: this.isWeekend(msgDate),
             metadata: {
-              channelId: channel.id,  // No channel name for privacy
+              channelId: channel.id, // No channel name for privacy
               isThread: !!msg.thread_ts,
             },
           });
@@ -164,14 +182,16 @@ export class SlackService {
         // Rate limit: 1 req/sec for conversations.history (Tier 3)
         await new Promise((r) => setTimeout(r, 1100));
       } catch (err) {
-        this.logger.warn(`Failed to fetch Slack history for channel ${channel.id}: ${err.message}`);
+        this.logger.warn(
+          `Failed to fetch Slack history for channel ${channel.id}: ${err.message}`,
+        );
       }
     }
 
     if (logs.length > 0) {
       const client = await this.db.connect();
       try {
-        await client.query('BEGIN');
+        await client.query("BEGIN");
 
         await client.query(
           `DELETE FROM raw_activity_logs
@@ -185,15 +205,21 @@ export class SlackService {
                (organization_id, user_id, source, event_type, occurred_at, is_after_hours, is_weekend, metadata)
              VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
             [
-              log.organizationId, log.userId, log.source, log.eventType,
-              log.occurredAt, log.isAfterHours, log.isWeekend, JSON.stringify(log.metadata),
+              log.organizationId,
+              log.userId,
+              log.source,
+              log.eventType,
+              log.occurredAt,
+              log.isAfterHours,
+              log.isWeekend,
+              JSON.stringify(log.metadata),
             ],
           );
         }
 
-        await client.query('COMMIT');
+        await client.query("COMMIT");
       } catch (err) {
-        await client.query('ROLLBACK');
+        await client.query("ROLLBACK");
         throw err;
       } finally {
         client.release();
@@ -205,7 +231,9 @@ export class SlackService {
       [userId],
     );
 
-    this.logger.log(`Synced ${totalMessages} Slack messages for user ${userId}`);
+    this.logger.log(
+      `Synced ${totalMessages} Slack messages for user ${userId}`,
+    );
     return { synced: totalMessages };
   }
 }

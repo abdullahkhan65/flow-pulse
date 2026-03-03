@@ -5,10 +5,10 @@
  * A focus block is defined as ≥90 minutes of meeting-free calendar time during work hours.
  */
 
-import { DailyAggregate } from '../analytics.types';
+import { DailyAggregate } from "../analytics.types";
 
-const WORK_DAY_MINUTES = 8 * 60;  // 480 min
-const DEEP_WORK_THRESHOLD_MIN = 90;  // A meaningful focus block
+const WORK_DAY_MINUTES = 8 * 60; // 480 min
+const DEEP_WORK_THRESHOLD_MIN = 90; // A meaningful focus block
 
 export function computeFocusScore(aggregates: DailyAggregate[]): {
   score: number;
@@ -30,7 +30,8 @@ export function computeFocusScore(aggregates: DailyAggregate[]): {
 
   // solo_focus_minutes: uninterrupted focus blocks from daily aggregates
   const avgSoloFocusMinutes =
-    workDays.reduce((s, d) => s + (d.solo_focus_minutes || 0), 0) / workDays.length;
+    workDays.reduce((s, d) => s + (d.solo_focus_minutes || 0), 0) /
+    workDays.length;
 
   // Score: 0 = no focus time, 100 = 4+ hours/day of uninterrupted focus
   // 0 min = 0, 60 min = 25, 120 min = 50, 180 min = 75, 240+ min = 100
@@ -38,7 +39,10 @@ export function computeFocusScore(aggregates: DailyAggregate[]): {
   const baseScore = Math.round(focusRatio * 80);
 
   // Bonus for deep focus blocks (≥90 min)
-  const deepWorkBonus = Math.min(20, (avgSoloFocusMinutes / DEEP_WORK_THRESHOLD_MIN) * 10);
+  const deepWorkBonus = Math.min(
+    20,
+    (avgSoloFocusMinutes / DEEP_WORK_THRESHOLD_MIN) * 10,
+  );
   const score = Math.round(Math.min(100, baseScore + deepWorkBonus));
 
   return {

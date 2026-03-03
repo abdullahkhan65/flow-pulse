@@ -1,7 +1,7 @@
-import { computeBurnoutRiskScore } from './burnout-risk.engine';
+import { computeBurnoutRiskScore } from "./burnout-risk.engine";
 
-describe('computeBurnoutRiskScore with GitHub weighting', () => {
-  it('includes github component in weighted math', () => {
+describe("computeBurnoutRiskScore with GitHub weighting", () => {
+  it("includes github component in weighted math", () => {
     const result = computeBurnoutRiskScore({
       meetingLoadScore: 50,
       contextSwitchScore: 40,
@@ -12,13 +12,13 @@ describe('computeBurnoutRiskScore with GitHub weighting', () => {
       githubLoadScore: 80,
     });
 
-    // 70*.22 + 50*.18 + (40)*.18 + 20*.12 + 80*.15 + 40*.08 + 30*.07
-    // 15.4 + 9 + 7.2 + 2.4 + 12 + 3.2 + 2.1 = 51.3 -> 51
-    expect(result.burnoutRiskScore).toBe(51);
-    expect(result.weightedComponents.githubLoad).toBe(12);
+    // 70*.20 + 50*.16 + 40*.16 + 20*.10 + 80*.13 + 40*.08 + 30*.07
+    // 14 + 8 + 6.4 + 2 + 10.4 + 3.2 + 2.1 = 46.1 -> 46
+    expect(result.burnoutRiskScore).toBe(46);
+    expect(result.weightedComponents.githubLoad).toBe(10.4);
   });
 
-  it('handles absent github/email for backwards compatibility', () => {
+  it("handles absent github/email for backwards compatibility", () => {
     const result = computeBurnoutRiskScore({
       meetingLoadScore: 20,
       contextSwitchScore: 20,

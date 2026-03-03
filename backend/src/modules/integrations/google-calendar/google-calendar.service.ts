@@ -1,16 +1,16 @@
-import { Injectable, Inject, Logger } from '@nestjs/common';
-import { Pool } from 'pg';
-import { ConfigService } from '@nestjs/config';
-import { google, calendar_v3 } from 'googleapis';
-import { DATABASE_POOL } from '../../../database/database.module';
-import { encrypt, decrypt } from '../../../common/utils/encryption';
-import { isAfter, isBefore, parseISO, getHours, getDay } from 'date-fns';
+import { Injectable, Inject, Logger } from "@nestjs/common";
+import { Pool } from "pg";
+import { ConfigService } from "@nestjs/config";
+import { google, calendar_v3 } from "googleapis";
+import { DATABASE_POOL } from "../../../database/database.module";
+import { encrypt, decrypt } from "../../../common/utils/encryption";
+import { parseISO, getHours, getDay } from "date-fns";
 
 interface NormalizedCalendarEvent {
   userId: string;
   organizationId: string;
-  source: 'google_calendar';
-  eventType: 'meeting' | 'focus_block' | 'all_day_event';
+  source: "google_calendar";
+  eventType: "meeting" | "focus_block" | "all_day_event";
   occurredAt: Date;
   durationSeconds: number;
   participantsCount: number;
@@ -35,9 +35,9 @@ export class GoogleCalendarService {
 
   private getOAuthClient() {
     return new google.auth.OAuth2(
-      this.configService.get('google.clientId'),
-      this.configService.get('google.clientSecret'),
-      this.configService.get('google.callbackUrl'),
+      this.configService.get("google.clientId"),
+      this.configService.get("google.clientSecret"),
+      this.configService.get("google.callbackUrl"),
     );
   }
 
@@ -49,18 +49,24 @@ export class GoogleCalendarService {
     );
     if (!result.rows[0]) return null;
 
-    const encKey = this.configService.get<string>('encryption.key')!;
+    const encKey = this.configService.get<string>("encryption.key")!;
     const row = result.rows[0];
     return {
       accessToken: decrypt(row.access_token, encKey),
-      refreshToken: row.refresh_token ? decrypt(row.refresh_token, encKey) : null,
+      refreshToken: row.refresh_token
+        ? decrypt(row.refresh_token, encKey)
+        : null,
       expiresAt: row.token_expires_at,
       syncCursor: row.sync_cursor,
     };
   }
 
-  private async saveRefreshedTokens(userId: string, accessToken: string, expiresAt: Date) {
-    const encKey = this.configService.get<string>('encryption.key')!;
+  private async saveRefreshedTokens(
+    userId: string,
+    accessToken: string,
+    expiresAt: Date,
+  ) {
+    const encKey = this.configService.get<string>("encryption.key")!;
     await this.db.query(
       `UPDATE integrations
        SET access_token = $1, token_expires_at = $2, updated_at = NOW()
@@ -69,7 +75,11 @@ export class GoogleCalendarService {
     );
   }
 
-  private isAfterWorkHours(date: Date, workdayStart = 9, workdayEnd = 18): boolean {
+  private isAfterWorkHours(
+    date: Date,
+    workdayStart = 9,
+    workdayEnd = 18,
+  ): boolean {
     const hour = getHours(date);
     return hour < workdayStart || hour >= workdayEnd;
   }
@@ -86,12 +96,12 @@ export class GoogleCalendarService {
     orgSettings: any,
   ): NormalizedCalendarEvent | null {
     if (!event.start?.dateTime || !event.end?.dateTime) return null; // Skip all-day events
-    if (event.status === 'cancelled') return null;
+    if (event.status === "cancelled") return null;
 
     // Only include events user accepted or is organizer
     const selfAttendee = event.attendees?.find((a) => a.self);
-    const responseStatus = selfAttendee?.responseStatus || 'accepted';
-    if (responseStatus === 'declined') return null;
+    const responseStatus = selfAttendee?.responseStatus || "accepted";
+    if (responseStatus === "declined") return null;
 
     const startTime = parseISO(event.start.dateTime);
     const endTime = parseISO(event.end.dateTime);
@@ -100,19 +110,22 @@ export class GoogleCalendarService {
     // Filter noise: skip <1 min events (very short calendar entries are likely noise)
     if (durationSeconds < 60) return null;
 
-    const participantsCount = (event.attendees?.length || 1);
+    const participantsCount = event.attendees?.length || 1;
     const hasConferencing = !!(event.conferenceData || event.hangoutLink);
-    const workdayStart = parseInt(orgSettings?.workdayStart?.split(':')[0] || '9');
-    const workdayEnd = parseInt(orgSettings?.workdayEnd?.split(':')[0] || '18');
+    const workdayStart = parseInt(
+      orgSettings?.workdayStart?.split(":")[0] || "9",
+    );
+    const workdayEnd = parseInt(orgSettings?.workdayEnd?.split(":")[0] || "18");
 
     // Treat as meeting if: multiple attendees OR has a video conferencing link
     // (Google Meet calls sometimes don't populate attendees on the organizer's calendar)
-    const eventType = (participantsCount > 1 || hasConferencing) ? 'meeting' : 'focus_block';
+    const eventType =
+      participantsCount > 1 || hasConferencing ? "meeting" : "focus_block";
 
     return {
       userId,
       organizationId: orgId,
-      source: 'google_calendar',
+      source: "google_calendar",
       eventType,
       occurredAt: startTime,
       durationSeconds,
@@ -148,34 +161,46 @@ export class GoogleCalendarService {
     });
 
     // Handle token refresh
-    auth.on('tokens', async (newTokens) => {
+    auth.on("tokens", async (newTokens) => {
       if (newTokens.access_token) {
         const expiresAt = newTokens.expiry_date
           ? new Date(newTokens.expiry_date)
           : new Date(Date.now() + 3600 * 1000);
-        await this.saveRefreshedTokens(userId, newTokens.access_token, expiresAt);
+        await this.saveRefreshedTokens(
+          userId,
+          newTokens.access_token,
+          expiresAt,
+        );
         this.logger.log(`Refreshed tokens for user ${userId}`);
       }
     });
 
-    const calendar = google.calendar({ version: 'v3', auth });
+    const calendar = google.calendar({ version: "v3", auth });
 
     // Sync last 7 days
-    const timeMin = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+    const timeMin = new Date(
+      Date.now() - 7 * 24 * 60 * 60 * 1000,
+    ).toISOString();
     const timeMax = new Date().toISOString();
 
     // Fetch all calendars the user has selected — not just 'primary'.
     // Meetings are often on team/work/shared calendars, not the primary one.
-    const calListResponse = await calendar.calendarList.list({ fields: 'items(id,summary,primary,selected,accessRole)' });
+    const calListResponse = await calendar.calendarList.list({
+      fields: "items(id,summary,primary,selected,accessRole)",
+    });
     const allCalendars = calListResponse.data.items || [];
     // Sync any calendar the user has selected to display, skipping noise (holidays/birthdays)
     const SKIP_PATTERN = /holiday|birthday|contact/i;
     const calendarIds = allCalendars
-      .filter((c) => c.selected !== false && !SKIP_PATTERN.test(c.summary || ''))
+      .filter(
+        (c) => c.selected !== false && !SKIP_PATTERN.test(c.summary || ""),
+      )
       .map((c) => c.id!);
 
-    if (calendarIds.length === 0) calendarIds.push('primary');
-    this.logger.log(`Syncing ${calendarIds.length} calendars for user ${userId}: ${allCalendars.map((c) => c.summary).join(', ')}`);
+    if (calendarIds.length === 0) calendarIds.push("primary");
+    this.logger.log(
+      `Syncing ${calendarIds.length} calendars for user ${userId}: ${allCalendars.map((c) => c.summary).join(", ")}`,
+    );
 
     const events: NormalizedCalendarEvent[] = [];
     const seenEventIds = new Set<string>();
@@ -189,10 +214,11 @@ export class GoogleCalendarService {
           timeMin,
           timeMax,
           singleEvents: true,
-          orderBy: 'startTime',
+          orderBy: "startTime",
           maxResults: 250,
           pageToken,
-          fields: 'items(id,start,end,attendees,status,recurringEventId,conferenceData,hangoutLink,organizer),nextPageToken',
+          fields:
+            "items(id,start,end,attendees,status,recurringEventId,conferenceData,hangoutLink,organizer),nextPageToken",
         });
 
         const items = response.data.items || [];
@@ -202,7 +228,12 @@ export class GoogleCalendarService {
           if (event.id && seenEventIds.has(event.id)) continue;
           if (event.id) seenEventIds.add(event.id);
 
-          const normalized = this.normalizeEvent(event, userId, orgId, orgSettings);
+          const normalized = this.normalizeEvent(
+            event,
+            userId,
+            orgId,
+            orgSettings,
+          );
           if (normalized) events.push(normalized);
         }
 
@@ -210,13 +241,15 @@ export class GoogleCalendarService {
       } while (pageToken);
     }
 
-    this.logger.log(`Calendar API returned ${rawCount} raw events across ${calendarIds.length} calendars, ${events.length} passed normalization for user ${userId}`);
+    this.logger.log(
+      `Calendar API returned ${rawCount} raw events across ${calendarIds.length} calendars, ${events.length} passed normalization for user ${userId}`,
+    );
 
     // Bulk insert, skip duplicates by using occurred_at + user_id + source as natural key
     if (events.length > 0) {
       const client = await this.db.connect();
       try {
-        await client.query('BEGIN');
+        await client.query("BEGIN");
 
         // Delete existing logs for this period (re-sync strategy)
         await client.query(
@@ -232,17 +265,24 @@ export class GoogleCalendarService {
                 participants_count, is_recurring, is_after_hours, is_weekend, metadata)
              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
             [
-              evt.organizationId, evt.userId, evt.source, evt.eventType,
-              evt.occurredAt, evt.durationSeconds, evt.participantsCount,
-              evt.isRecurring, evt.isAfterHours, evt.isWeekend,
+              evt.organizationId,
+              evt.userId,
+              evt.source,
+              evt.eventType,
+              evt.occurredAt,
+              evt.durationSeconds,
+              evt.participantsCount,
+              evt.isRecurring,
+              evt.isAfterHours,
+              evt.isWeekend,
               JSON.stringify(evt.metadata),
             ],
           );
         }
 
-        await client.query('COMMIT');
+        await client.query("COMMIT");
       } catch (err) {
-        await client.query('ROLLBACK');
+        await client.query("ROLLBACK");
         throw err;
       } finally {
         client.release();
@@ -255,7 +295,9 @@ export class GoogleCalendarService {
       [userId],
     );
 
-    this.logger.log(`Synced ${events.length} calendar events for user ${userId}`);
+    this.logger.log(
+      `Synced ${events.length} calendar events for user ${userId}`,
+    );
     return { synced: events.length };
   }
 }

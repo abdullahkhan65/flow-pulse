@@ -1,15 +1,15 @@
 export default () => ({
-  nodeEnv: process.env.NODE_ENV || 'development',
-  port: parseInt(process.env.PORT ?? '3001', 10) || 3001,
-  frontendUrl: process.env.FRONTEND_URL || 'http://localhost:3000',
+  nodeEnv: process.env.NODE_ENV || "development",
+  port: parseInt(process.env.PORT ?? "3001", 10) || 3001,
+  frontendUrl: process.env.FRONTEND_URL || "http://localhost:3000",
 
   database: {
     url: process.env.DATABASE_URL,
   },
 
   jwt: {
-    secret: process.env.JWT_SECRET || 'dev-secret-change-in-prod',
-    expiresIn: process.env.JWT_EXPIRES_IN || '7d',
+    secret: process.env.JWT_SECRET || "dev-secret-change-in-prod",
+    expiresIn: process.env.JWT_EXPIRES_IN || "7d",
   },
 
   google: {
@@ -37,7 +37,7 @@ export default () => ({
   },
 
   email: {
-    from: process.env.EMAIL_FROM || 'FlowPulse <noreply@flowpulse.app>',
+    from: process.env.EMAIL_FROM || "FlowPulse <noreply@flowpulse.app>",
   },
 
   redis: {
@@ -45,7 +45,7 @@ export default () => ({
   },
 
   encryption: {
-    key: process.env.ENCRYPTION_KEY || 'dev-key-32-chars-change-in-prod!',
+    key: process.env.ENCRYPTION_KEY || "dev-key-32-chars-change-in-prod!",
   },
 
   github: {

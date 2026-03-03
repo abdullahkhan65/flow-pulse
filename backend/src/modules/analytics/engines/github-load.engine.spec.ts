@@ -1,11 +1,11 @@
-import { computeGithubLoadScore } from './github-load.engine';
-import { DailyAggregate } from '../analytics.types';
+import { computeGithubLoadScore } from "./github-load.engine";
+import { DailyAggregate } from "../analytics.types";
 
 function day(overrides: Partial<DailyAggregate>): DailyAggregate {
   return {
-    id: '1',
-    organization_id: 'o1',
-    user_id: 'u1',
+    id: "1",
+    organization_id: "o1",
+    user_id: "u1",
     date: new Date(),
     total_meeting_minutes: 0,
     meeting_count: 0,
@@ -37,16 +37,26 @@ function day(overrides: Partial<DailyAggregate>): DailyAggregate {
   };
 }
 
-describe('computeGithubLoadScore', () => {
-  it('returns 0 when no data', () => {
+describe("computeGithubLoadScore", () => {
+  it("returns 0 when no data", () => {
     const result = computeGithubLoadScore([]);
     expect(result.score).toBe(0);
   });
 
-  it('computes moderate workload correctly', () => {
+  it("computes moderate workload correctly", () => {
     const result = computeGithubLoadScore([
-      day({ github_commits: 8, github_pr_reviews: 2, github_prs_created: 2, github_after_hours_events: 1 }),
-      day({ github_commits: 8, github_pr_reviews: 2, github_prs_created: 2, github_after_hours_events: 1 }),
+      day({
+        github_commits: 8,
+        github_pr_reviews: 2,
+        github_prs_created: 2,
+        github_after_hours_events: 1,
+      }),
+      day({
+        github_commits: 8,
+        github_pr_reviews: 2,
+        github_prs_created: 2,
+        github_after_hours_events: 1,
+      }),
     ]);
     expect(result.breakdown.volumeScore).toBe(24);
     expect(result.breakdown.reviewBurdenScore).toBe(6);
@@ -54,7 +64,7 @@ describe('computeGithubLoadScore', () => {
     expect(result.score).toBe(36);
   });
 
-  it('caps at 100 for extreme workload', () => {
+  it("caps at 100 for extreme workload", () => {
     const result = computeGithubLoadScore([
       day({
         github_commits: 40,

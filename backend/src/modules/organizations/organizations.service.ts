@@ -1,8 +1,13 @@
-import { Injectable, Inject, NotFoundException, ForbiddenException } from '@nestjs/common';
-import { Pool } from 'pg';
-import { ConfigService } from '@nestjs/config';
-import { DATABASE_POOL } from '../../database/database.module';
-import { NotificationsService } from '../notifications/notifications.service';
+import {
+  Injectable,
+  Inject,
+  NotFoundException,
+  ForbiddenException,
+} from "@nestjs/common";
+import { Pool } from "pg";
+import { ConfigService } from "@nestjs/config";
+import { DATABASE_POOL } from "../../database/database.module";
+import { NotificationsService } from "../notifications/notifications.service";
 
 @Injectable()
 export class OrganizationsService {
@@ -17,7 +22,7 @@ export class OrganizationsService {
       `SELECT * FROM organizations WHERE id = $1 AND is_active = true`,
       [id],
     );
-    if (!result.rows[0]) throw new NotFoundException('Organization not found');
+    if (!result.rows[0]) throw new NotFoundException("Organization not found");
     return result.rows[0];
   }
 
@@ -53,7 +58,7 @@ export class OrganizationsService {
     return result.rows;
   }
 
-  async inviteMember(orgId: string, email: string, role: string = 'member') {
+  async inviteMember(orgId: string, email: string, role: string = "member") {
     // Check seat limit before creating user
     const billingRow = await this.db.query(
       `SELECT bs.seats, o.trial_ends_at,
@@ -69,7 +74,8 @@ export class OrganizationsService {
     if (billingRow.rows.length > 0) {
       const { seats, trial_ends_at, active_seats } = billingRow.rows[0];
       const seatLimit = seats || 4;
-      const isTrialExpired = trial_ends_at && new Date(trial_ends_at) < new Date();
+      const isTrialExpired =
+        trial_ends_at && new Date(trial_ends_at) < new Date();
 
       if (parseInt(active_seats) >= seatLimit) {
         throw new ForbiddenException(
@@ -78,7 +84,7 @@ export class OrganizationsService {
       }
       if (isTrialExpired) {
         throw new ForbiddenException(
-          'Trial expired. Please upgrade your plan to invite members.',
+          "Trial expired. Please upgrade your plan to invite members.",
         );
       }
     }
@@ -88,7 +94,7 @@ export class OrganizationsService {
       [orgId, email],
     );
     if (existing.rows.length > 0) {
-      throw new ForbiddenException('User already in organization');
+      throw new ForbiddenException("User already in organization");
     }
 
     const result = await this.db.query(
@@ -100,7 +106,10 @@ export class OrganizationsService {
 
     // Send invite email — fire and forget (non-blocking)
     const org = await this.findById(orgId);
-    const frontendUrl = this.configService.get<string>('frontendUrl', 'http://localhost:3000');
+    const frontendUrl = this.configService.get<string>(
+      "frontendUrl",
+      "http://localhost:3000",
+    );
     const loginUrl = `${frontendUrl}/login?invited=true`;
     this.notificationsService.sendInviteEmail(email, org.name, loginUrl);
 
@@ -114,7 +123,7 @@ export class OrganizationsService {
        RETURNING id`,
       [userId, orgId],
     );
-    if (!result.rows[0]) throw new NotFoundException('User not found');
+    if (!result.rows[0]) throw new NotFoundException("User not found");
     return { deleted: true };
   }
 
@@ -124,13 +133,18 @@ export class OrganizationsService {
       [userId, orgId],
     );
     const member = memberResult.rows[0];
-    if (!member) throw new NotFoundException('User not found');
+    if (!member) throw new NotFoundException("User not found");
     if (member.is_active) {
-      throw new ForbiddenException('User is already active. Invite resend is only for pending users.');
+      throw new ForbiddenException(
+        "User is already active. Invite resend is only for pending users.",
+      );
     }
 
     const org = await this.findById(orgId);
-    const frontendUrl = this.configService.get<string>('frontendUrl', 'http://localhost:3000');
+    const frontendUrl = this.configService.get<string>(
+      "frontendUrl",
+      "http://localhost:3000",
+    );
     const loginUrl = `${frontendUrl}/login?invited=true`;
     this.notificationsService.sendInviteEmail(member.email, org.name, loginUrl);
 
@@ -142,7 +156,7 @@ export class OrganizationsService {
       `UPDATE users SET role = $1 WHERE id = $2 AND organization_id = $3 RETURNING id, email, role`,
       [role, userId, orgId],
     );
-    if (!result.rows[0]) throw new NotFoundException('User not found');
+    if (!result.rows[0]) throw new NotFoundException("User not found");
     return result.rows[0];
   }
 }

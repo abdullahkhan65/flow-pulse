@@ -1,9 +1,9 @@
-import { DailyAggregate } from '../analytics.types';
+import { DailyAggregate } from "../analytics.types";
 
 interface EmailLoadBreakdown {
-  volumeScore: number;        // 0–40: emails sent per day
-  afterHoursScore: number;    // 0–40: after-hours email activity
-  responseTimeScore: number;  // 0–20: hyper-responsiveness signal
+  volumeScore: number; // 0–40: emails sent per day
+  afterHoursScore: number; // 0–40: after-hours email activity
+  responseTimeScore: number; // 0–20: hyper-responsiveness signal
   avgEmailsSentPerDay: number;
   avgAfterHoursEmailsPerDay: number;
   avgResponseTimeMin: number | null;
@@ -38,11 +38,13 @@ export function computeEmailLoadScore(aggregates: DailyAggregate[]): {
   const daysWithEmail = aggregates.filter((d) => (d.emails_sent || 0) > 0);
   const avgEmailsSentPerDay =
     daysWithEmail.length > 0
-      ? aggregates.reduce((s, d) => s + (d.emails_sent || 0), 0) / aggregates.length
+      ? aggregates.reduce((s, d) => s + (d.emails_sent || 0), 0) /
+        aggregates.length
       : 0;
 
   const avgAfterHoursEmailsPerDay =
-    aggregates.reduce((s, d) => s + (d.after_hours_emails || 0), 0) / aggregates.length;
+    aggregates.reduce((s, d) => s + (d.after_hours_emails || 0), 0) /
+    aggregates.length;
 
   const responseTimes = aggregates
     .map((d) => d.avg_email_response_min)
@@ -56,7 +58,10 @@ export function computeEmailLoadScore(aggregates: DailyAggregate[]): {
   const volumeScore = Math.min(40, Math.round((avgEmailsSentPerDay / 50) * 40));
 
   // After-hours score: 0 = 0, 5+/day = 40
-  const afterHoursScore = Math.min(40, Math.round((avgAfterHoursEmailsPerDay / 5) * 40));
+  const afterHoursScore = Math.min(
+    40,
+    Math.round((avgAfterHoursEmailsPerDay / 5) * 40),
+  );
 
   // Response time score: only if we have data
   // < 15 min avg response = max stress signal (20 pts), > 120 min = 0 pts
@@ -68,7 +73,10 @@ export function computeEmailLoadScore(aggregates: DailyAggregate[]): {
     else responseTimeScore = 0;
   }
 
-  const score = Math.min(100, volumeScore + afterHoursScore + responseTimeScore);
+  const score = Math.min(
+    100,
+    volumeScore + afterHoursScore + responseTimeScore,
+  );
 
   return {
     score,
@@ -77,8 +85,10 @@ export function computeEmailLoadScore(aggregates: DailyAggregate[]): {
       afterHoursScore,
       responseTimeScore,
       avgEmailsSentPerDay: Math.round(avgEmailsSentPerDay * 10) / 10,
-      avgAfterHoursEmailsPerDay: Math.round(avgAfterHoursEmailsPerDay * 10) / 10,
-      avgResponseTimeMin: avgResponseTimeMin !== null ? Math.round(avgResponseTimeMin) : null,
+      avgAfterHoursEmailsPerDay:
+        Math.round(avgAfterHoursEmailsPerDay * 10) / 10,
+      avgResponseTimeMin:
+        avgResponseTimeMin !== null ? Math.round(avgResponseTimeMin) : null,
     },
   };
 }

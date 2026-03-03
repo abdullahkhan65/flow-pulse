@@ -1,7 +1,7 @@
-import { Inject, Injectable, NotFoundException } from '@nestjs/common';
-import { Pool } from 'pg';
-import { DATABASE_POOL } from '../../database/database.module';
-import { UpsertBlogPostDto } from './dto/upsert-blog-post.dto';
+import { Inject, Injectable, NotFoundException } from "@nestjs/common";
+import { Pool } from "pg";
+import { DATABASE_POOL } from "../../database/database.module";
+import { UpsertBlogPostDto } from "./dto/upsert-blog-post.dto";
 
 @Injectable()
 export class AdminService {
@@ -11,21 +11,21 @@ export class AdminService {
     return input
       .toLowerCase()
       .trim()
-      .replace(/[^a-z0-9\s-]/g, '')
-      .replace(/\s+/g, '-')
-      .replace(/-+/g, '-')
+      .replace(/[^a-z0-9\s-]/g, "")
+      .replace(/\s+/g, "-")
+      .replace(/-+/g, "-")
       .slice(0, 180);
   }
 
   private async generateUniqueSlug(title: string, existingId?: string) {
-    const base = this.slugify(title) || 'article';
+    const base = this.slugify(title) || "article";
     let slug = base;
     let i = 1;
 
     // eslint-disable-next-line no-constant-condition
     while (true) {
       const result = await this.db.query(
-        `SELECT id FROM blog_posts WHERE slug = $1 ${existingId ? 'AND id <> $2' : ''}`,
+        `SELECT id FROM blog_posts WHERE slug = $1 ${existingId ? "AND id <> $2" : ""}`,
         existingId ? [slug, existingId] : [slug],
       );
 
@@ -36,33 +36,38 @@ export class AdminService {
   }
 
   async getOverview() {
-    const [orgs, users, integrations, posts, latestUsers, latestPosts] = await Promise.all([
-      this.db.query(`SELECT COUNT(*)::int AS count FROM organizations WHERE is_active = true`),
-      this.db.query(`SELECT COUNT(*)::int AS count FROM users WHERE is_active = true`),
-      this.db.query(
-        `SELECT COUNT(*)::int AS connected FROM integrations WHERE status = 'active'`,
-      ),
-      this.db.query(
-        `SELECT
+    const [orgs, users, integrations, posts, latestUsers, latestPosts] =
+      await Promise.all([
+        this.db.query(
+          `SELECT COUNT(*)::int AS count FROM organizations WHERE is_active = true`,
+        ),
+        this.db.query(
+          `SELECT COUNT(*)::int AS count FROM users WHERE is_active = true`,
+        ),
+        this.db.query(
+          `SELECT COUNT(*)::int AS connected FROM integrations WHERE status = 'active'`,
+        ),
+        this.db.query(
+          `SELECT
            COUNT(*)::int AS total,
            COUNT(*) FILTER (WHERE status = 'published')::int AS published,
            COUNT(*) FILTER (WHERE status = 'draft')::int AS draft
          FROM blog_posts`,
-      ),
-      this.db.query(
-        `SELECT u.id, u.name, u.email, u.role, u.created_at, o.name AS organization_name
+        ),
+        this.db.query(
+          `SELECT u.id, u.name, u.email, u.role, u.created_at, o.name AS organization_name
          FROM users u
          LEFT JOIN organizations o ON o.id = u.organization_id
          ORDER BY u.created_at DESC
          LIMIT 8`,
-      ),
-      this.db.query(
-        `SELECT id, slug, title, status, author_name, company_name, published_at, created_at
+        ),
+        this.db.query(
+          `SELECT id, slug, title, status, author_name, company_name, published_at, created_at
          FROM blog_posts
          ORDER BY created_at DESC
          LIMIT 8`,
-      ),
-    ]);
+        ),
+      ]);
 
     return {
       totals: {
@@ -88,7 +93,7 @@ export class AdminService {
 
   async createBlogPost(actorId: string, dto: UpsertBlogPostDto) {
     const slug = await this.generateUniqueSlug(dto.title);
-    const status = dto.status || 'draft';
+    const status = dto.status || "draft";
 
     const result = await this.db.query(
       `INSERT INTO blog_posts (
@@ -120,11 +125,14 @@ export class AdminService {
   }
 
   async updateBlogPost(id: string, actorId: string, dto: UpsertBlogPostDto) {
-    const existing = await this.db.query(`SELECT id FROM blog_posts WHERE id = $1`, [id]);
-    if (!existing.rows[0]) throw new NotFoundException('Blog post not found');
+    const existing = await this.db.query(
+      `SELECT id FROM blog_posts WHERE id = $1`,
+      [id],
+    );
+    if (!existing.rows[0]) throw new NotFoundException("Blog post not found");
 
     const slug = await this.generateUniqueSlug(dto.title, id);
-    const status = dto.status || 'draft';
+    const status = dto.status || "draft";
 
     const result = await this.db.query(
       `UPDATE blog_posts
@@ -171,7 +179,7 @@ export class AdminService {
       `DELETE FROM blog_posts WHERE id = $1 RETURNING id`,
       [id],
     );
-    if (!result.rows[0]) throw new NotFoundException('Blog post not found');
+    if (!result.rows[0]) throw new NotFoundException("Blog post not found");
     return { deleted: true };
   }
 }

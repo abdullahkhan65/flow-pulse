@@ -1,7 +1,7 @@
-import { createParamDecorator, ExecutionContext } from '@nestjs/common';
+import { createParamDecorator, ExecutionContext } from "@nestjs/common";
 
 export interface JwtPayload {
-  sub: string;           // user UUID
+  sub: string; // user UUID
   email: string;
   organizationId: string;
   role: string;

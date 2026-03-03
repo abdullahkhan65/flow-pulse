@@ -117,7 +117,7 @@ function TodayCard({ snapshot }: { snapshot: TodaySnapshot }) {
   return (
     <div className="card p-5">
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-sm font-semibold text-slate-700">Today's Snapshot</h2>
+        <h2 className="text-sm font-semibold text-slate-700">Today&apos;s Snapshot</h2>
         <span className="text-xs text-slate-400">{format(new Date(), 'EEEE, MMM d')}</span>
       </div>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -237,7 +237,7 @@ function SyncingState({ onDone }: { onDone: (data: PreviewData) => void }) {
     }).catch(() => clearInterval(interval));
 
     return () => clearInterval(interval);
-  }, []);
+  }, [onDone, phases.length]);
 
   return (
     <div className="card flex flex-col items-center p-12 text-center">

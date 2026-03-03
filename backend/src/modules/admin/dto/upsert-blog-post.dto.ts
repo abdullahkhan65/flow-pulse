@@ -1,4 +1,12 @@
-import { IsArray, IsIn, IsOptional, IsString, IsUrl, MaxLength, MinLength } from 'class-validator';
+import {
+  IsArray,
+  IsIn,
+  IsOptional,
+  IsString,
+  IsUrl,
+  MaxLength,
+  MinLength,
+} from "class-validator";
 
 export class UpsertBlogPostDto {
   @IsString()
@@ -38,6 +46,6 @@ export class UpsertBlogPostDto {
   tags?: string[];
 
   @IsOptional()
-  @IsIn(['draft', 'published'])
-  status?: 'draft' | 'published';
+  @IsIn(["draft", "published"])
+  status?: "draft" | "published";
 }
