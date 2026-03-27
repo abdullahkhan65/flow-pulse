@@ -4,7 +4,7 @@ export function FlowPulseMark({ className }: { className?: string }) {
   return (
     <div
       className={clsx(
-        'relative flex h-9 w-9 items-center justify-center overflow-hidden rounded-lg border border-blue-200 bg-gradient-to-br from-[#0055CC] via-[#0C66E4] to-[#4C9AFF] shadow-[0_8px_18px_rgba(9,30,66,0.3)]',
+        'relative flex h-9 w-9 items-center justify-center overflow-hidden rounded-lg border border-white/20 bg-gradient-to-br from-[#66d9ff] via-[#2f8cff] to-[#1545d2] shadow-[0_18px_32px_rgba(0,10,24,0.45)]',
         className,
       )}
       aria-hidden="true"
@@ -26,8 +26,8 @@ export function FlowPulseLogo({ compact = false }: { compact?: boolean }) {
       <FlowPulseMark />
       {!compact && (
         <div className="min-w-0">
-          <p className="truncate text-sm font-semibold text-slate-800 [font-family:var(--font-heading)]">FlowPulse</p>
-          <p className="truncate text-[11px] uppercase tracking-[0.16em] text-slate-500">Team Signal Intelligence</p>
+          <p className="truncate text-sm font-semibold text-white [font-family:var(--font-heading)]">FlowPulse</p>
+          <p className="truncate text-[11px] uppercase tracking-[0.16em] text-slate-300">Team Signal Intelligence</p>
         </div>
       )}
     </div>

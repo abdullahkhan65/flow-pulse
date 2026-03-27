@@ -33,7 +33,7 @@ function IntegrationGlyph({ type }: { type: string }) {
 
   const target = map[type] || map.github;
   return (
-    <div className={clsx('flex h-10 w-10 items-center justify-center rounded-lg border', target.className)} title={target.label}>
+    <div className={clsx('flex h-10 w-10 items-center justify-center rounded-lg border backdrop-blur-xl', target.className)} title={target.label}>
       {target.icon}
     </div>
   );
@@ -54,16 +54,16 @@ function IntegrationCard({
 
   return (
     <div className="card flex items-center gap-4 p-5">
-      <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-slate-100">
+      <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-white/10">
         {icon}
       </div>
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
-          <h3 className="text-sm font-medium text-slate-900">{label}</h3>
+          <h3 className="text-sm font-medium text-white">{label}</h3>
           {isConnected && <CheckCircle className="w-3.5 h-3.5 text-green-500" />}
           {isError && <XCircle className="w-3.5 h-3.5 text-red-500" />}
         </div>
-        <p className="mt-0.5 text-xs text-slate-500">{description}</p>
+        <p className="mt-0.5 text-xs text-slate-400">{description}</p>
         {isConnected && integration.last_synced_at && (
           <p className="mt-1 text-xs text-slate-400">
             Last synced {format(parseISO(integration.last_synced_at), 'MMM d, h:mm a')}
@@ -76,7 +76,7 @@ function IntegrationCard({
         className={clsx(
           'flex-shrink-0 rounded-xl px-4 py-2 text-sm font-medium transition-colors',
           isConnected
-            ? 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+            ? 'bg-white/10 text-slate-200 hover:bg-white/15'
             : 'bg-blue-700 text-white hover:bg-blue-800',
         )}
       >
@@ -94,8 +94,8 @@ function Section({ title, description, children }: {
   return (
     <section>
       <div className="mb-4">
-        <h2 className="text-base font-semibold text-slate-900 [font-family:var(--font-heading)]">{title}</h2>
-        {description && <p className="mt-1 text-sm text-slate-500">{description}</p>}
+        <h2 className="text-base font-semibold text-white [font-family:var(--font-heading)]">{title}</h2>
+        {description && <p className="mt-1 text-sm text-slate-400">{description}</p>}
       </div>
       {children}
     </section>
@@ -209,9 +209,9 @@ export default function SettingsPage() {
 
   return (
     <div className="max-w-3xl space-y-8 reveal-up">
-      <div className="rounded-2xl border border-slate-200/80 bg-white/70 p-4">
-        <h1 className="text-2xl font-semibold text-slate-900 [font-family:var(--font-heading)]">Settings</h1>
-        <p className="mt-1 text-sm text-slate-600">Manage integrations and your privacy preferences.</p>
+      <div className="panel rounded-2xl p-4">
+        <h1 className="text-2xl font-semibold text-white [font-family:var(--font-heading)]">Settings</h1>
+        <p className="mt-1 text-sm text-slate-300">Manage integrations and your privacy preferences.</p>
       </div>
 
       {/* Integrations */}
@@ -259,7 +259,7 @@ export default function SettingsPage() {
                 <p className="mt-0.5 text-xs text-slate-500">Limit sync scope to reduce noisy personal/public activity.</p>
               </div>
               <div className="grid md:grid-cols-2 gap-3">
-                <label className="text-xs text-slate-600">
+                <label className="text-xs text-slate-300">
                   Time window
                   <select
                     value={githubWindow}
@@ -271,7 +271,7 @@ export default function SettingsPage() {
                     <option value={30}>Last 30 days</option>
                   </select>
                 </label>
-                <label className="text-xs text-slate-600">
+                <label className="text-xs text-slate-300">
                   Repo allowlist (owner/repo, one per line)
                   <textarea
                     value={githubRepos}
@@ -301,12 +301,12 @@ export default function SettingsPage() {
         title="Your Privacy"
         description="You are always in control of your data. These settings apply only to you."
       >
-        <div className="card divide-y divide-slate-100">
+        <div className="card divide-y divide-white/10">
           {/* Data collection consent */}
           <div className="p-4 flex items-center justify-between gap-4">
             <div>
-              <h4 className="text-sm font-medium text-slate-900">Data Collection</h4>
-              <p className="mt-0.5 text-xs text-slate-500">
+              <h4 className="text-sm font-medium text-white">Data Collection</h4>
+              <p className="mt-0.5 text-xs text-slate-400">
                 When disabled, we stop collecting data and delete all your existing data immediately.
               </p>
             </div>
@@ -317,15 +317,15 @@ export default function SettingsPage() {
                 onChange={(e) => handleConsentChange(e.target.checked)}
                 className="sr-only peer"
               />
-              <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-700" />
+              <div className="h-6 w-11 rounded-full bg-white/10 peer peer-checked:bg-blue-700 peer-focus:outline-none peer-checked:after:translate-x-full peer-checked:after:border-white after:absolute after:left-[2px] after:top-[2px] after:h-5 after:w-5 after:rounded-full after:border after:border-gray-300 after:bg-white after:transition-all after:content-['']" />
             </label>
           </div>
 
           {/* Export data */}
           <div className="p-4 flex items-center justify-between gap-4">
             <div>
-              <h4 className="text-sm font-medium text-slate-900">Export My Data</h4>
-              <p className="mt-0.5 text-xs text-slate-500">
+              <h4 className="text-sm font-medium text-white">Export My Data</h4>
+              <p className="mt-0.5 text-xs text-slate-400">
                 Download everything we have stored about you as JSON.
               </p>
             </div>
@@ -339,7 +339,7 @@ export default function SettingsPage() {
           <div className="p-4 flex items-center justify-between gap-4">
             <div>
               <h4 className="text-sm font-medium text-rose-700">Delete All My Data</h4>
-              <p className="mt-0.5 text-xs text-slate-500">
+              <p className="mt-0.5 text-xs text-slate-400">
                 Permanently deletes all activity logs, daily aggregates, and weekly scores. Cannot be undone.
               </p>
             </div>
@@ -349,7 +349,7 @@ export default function SettingsPage() {
                 'text-xs px-4 py-2 rounded-xl font-medium transition-colors',
                 deleteConfirm
                   ? 'bg-rose-700 text-white hover:bg-rose-800'
-                  : 'text-rose-700 border border-rose-200 hover:bg-rose-50',
+                  : 'border border-rose-200/20 text-rose-200 hover:bg-rose-300/10',
               )}
             >
               <Trash2 className="w-3.5 h-3.5 inline mr-1" />
@@ -364,16 +364,16 @@ export default function SettingsPage() {
         <Section title="Organization" description="Visible to admins only">
           <div className="card p-4 space-y-3">
             <div className="flex items-center justify-between text-sm">
-              <span className="text-slate-600">Organization</span>
-              <span className="font-medium">{org.name}</span>
+              <span className="text-slate-300">Organization</span>
+              <span className="font-medium text-white">{org.name}</span>
             </div>
             <div className="flex items-center justify-between text-sm">
-              <span className="text-slate-600">Plan</span>
-              <span className="font-medium capitalize">{org.plan}</span>
+              <span className="text-slate-300">Plan</span>
+              <span className="font-medium capitalize text-white">{org.plan}</span>
             </div>
             <div className="flex items-center justify-between text-sm">
-              <span className="text-slate-600">Work Hours</span>
-              <span className="font-medium">{org.settings.workdayStart} – {org.settings.workdayEnd}</span>
+              <span className="text-slate-300">Work Hours</span>
+              <span className="font-medium text-white">{org.settings.workdayStart} – {org.settings.workdayEnd}</span>
             </div>
           </div>
         </Section>
@@ -429,37 +429,37 @@ export default function SettingsPage() {
 
             {/* Stats row */}
             <div className="grid grid-cols-3 gap-3 pt-1">
-              <div className="rounded-xl bg-slate-50 border border-slate-100 p-3">
-                <p className="text-xs text-slate-500">Seats used</p>
-                <p className="mt-1 text-lg font-semibold text-slate-900">
+              <div className="rounded-xl border border-white/10 bg-white/5 p-3">
+                <p className="text-xs text-slate-400">Seats used</p>
+                <p className="mt-1 text-lg font-semibold text-white">
                   {billing.activeSeats}
                   <span className="text-sm font-normal text-slate-400"> / {billing.seats}</span>
                 </p>
               </div>
               {billing.status === 'trialing' && billing.daysLeftInTrial != null && (
-                <div className="rounded-xl bg-amber-50 border border-amber-100 p-3">
-                  <p className="text-xs text-amber-700">Trial days left</p>
-                  <p className="mt-1 text-lg font-semibold text-amber-900">{billing.daysLeftInTrial}</p>
+                <div className="rounded-xl border border-amber-200/20 bg-amber-300/10 p-3">
+                  <p className="text-xs text-amber-100">Trial days left</p>
+                  <p className="mt-1 text-lg font-semibold text-amber-50">{billing.daysLeftInTrial}</p>
                 </div>
               )}
               {billing.status === 'active' && billing.currentPeriodEnd && (
-                <div className="rounded-xl bg-slate-50 border border-slate-100 p-3">
-                  <p className="text-xs text-slate-500">Renews</p>
-                  <p className="mt-1 text-sm font-semibold text-slate-900">
+                <div className="rounded-xl border border-white/10 bg-white/5 p-3">
+                  <p className="text-xs text-slate-400">Renews</p>
+                  <p className="mt-1 text-sm font-semibold text-white">
                     {format(parseISO(billing.currentPeriodEnd), 'MMM d, yyyy')}
                   </p>
                 </div>
               )}
-              <div className="rounded-xl bg-slate-50 border border-slate-100 p-3">
-                <p className="text-xs text-slate-500">Price</p>
-                <p className="mt-1 text-sm font-semibold text-slate-900">
+              <div className="rounded-xl border border-white/10 bg-white/5 p-3">
+                <p className="text-xs text-slate-400">Price</p>
+                <p className="mt-1 text-sm font-semibold text-white">
                   {billing.status === 'trialing' ? 'Free trial' : `$5 / seat / mo`}
                 </p>
               </div>
             </div>
 
             {billing.cancelAtPeriodEnd && (
-              <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
+              <p className="rounded-xl border border-amber-200/20 bg-amber-300/10 px-3 py-2 text-xs text-amber-100">
                 Your subscription is set to cancel at the end of the billing period.
               </p>
             )}

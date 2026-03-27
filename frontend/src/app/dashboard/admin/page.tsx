@@ -87,37 +87,37 @@ export default function AdminPage() {
 
   return (
     <div className="space-y-6 reveal-up">
-      <div className="rounded-2xl border border-slate-200/80 bg-white p-4">
-        <h1 className="text-2xl font-semibold text-slate-900 [font-family:var(--font-heading)]">Admin Console</h1>
-        <p className="mt-1 text-sm text-slate-600">Platform-level insights and blog content management.</p>
+      <div className="panel rounded-2xl p-4">
+        <h1 className="text-2xl font-semibold text-white [font-family:var(--font-heading)]">Admin Console</h1>
+        <p className="mt-1 text-sm text-slate-300">Platform-level insights and blog content management.</p>
       </div>
 
       <section className="grid gap-4 md:grid-cols-4">
         <div className="card p-4">
-          <p className="text-xs text-slate-500">Organizations</p>
-          <p className="mt-2 text-2xl font-semibold [font-family:var(--font-heading)]">{overview?.totals.organizations ?? 0}</p>
+          <p className="text-xs text-slate-400">Organizations</p>
+          <p className="mt-2 text-2xl font-semibold text-white [font-family:var(--font-heading)]">{overview?.totals.organizations ?? 0}</p>
           <Building2 className="mt-2 h-4 w-4 text-slate-400" />
         </div>
         <div className="card p-4">
-          <p className="text-xs text-slate-500">Active Users</p>
-          <p className="mt-2 text-2xl font-semibold [font-family:var(--font-heading)]">{overview?.totals.users ?? 0}</p>
+          <p className="text-xs text-slate-400">Active Users</p>
+          <p className="mt-2 text-2xl font-semibold text-white [font-family:var(--font-heading)]">{overview?.totals.users ?? 0}</p>
           <Users className="mt-2 h-4 w-4 text-slate-400" />
         </div>
         <div className="card p-4">
-          <p className="text-xs text-slate-500">Connected Integrations</p>
-          <p className="mt-2 text-2xl font-semibold [font-family:var(--font-heading)]">{overview?.totals.connectedIntegrations ?? 0}</p>
+          <p className="text-xs text-slate-400">Connected Integrations</p>
+          <p className="mt-2 text-2xl font-semibold text-white [font-family:var(--font-heading)]">{overview?.totals.connectedIntegrations ?? 0}</p>
           <Link2 className="mt-2 h-4 w-4 text-slate-400" />
         </div>
         <div className="card p-4">
-          <p className="text-xs text-slate-500">Blog Posts</p>
-          <p className="mt-2 text-2xl font-semibold [font-family:var(--font-heading)]">{totalPosts.total}</p>
-          <p className="mt-1 text-xs text-slate-500">{totalPosts.published} published · {totalPosts.draft} draft</p>
+          <p className="text-xs text-slate-400">Blog Posts</p>
+          <p className="mt-2 text-2xl font-semibold text-white [font-family:var(--font-heading)]">{totalPosts.total}</p>
+          <p className="mt-1 text-xs text-slate-400">{totalPosts.published} published · {totalPosts.draft} draft</p>
         </div>
       </section>
 
       <section className="card p-5 md:p-6">
         <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-lg font-semibold [font-family:var(--font-heading)]">{isEditing ? 'Edit Blog Post' : 'Create Blog Post'}</h2>
+          <h2 className="text-lg font-semibold text-white [font-family:var(--font-heading)]">{isEditing ? 'Edit Blog Post' : 'Create Blog Post'}</h2>
           <button
             className="btn-secondary px-3 py-2 text-xs"
             onClick={() => {
@@ -163,17 +163,17 @@ export default function AdminPage() {
       </section>
 
       <section className="card overflow-hidden">
-        <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
-          <h2 className="text-lg font-semibold [font-family:var(--font-heading)]">Articles</h2>
+        <div className="flex items-center justify-between border-b border-white/10 px-5 py-4">
+          <h2 className="text-lg font-semibold text-white [font-family:var(--font-heading)]">Articles</h2>
           <FileText className="h-4 w-4 text-slate-400" />
         </div>
 
-        <div className="divide-y divide-slate-100">
+        <div className="divide-y divide-white/10">
           {(posts || []).map((post) => (
             <div key={post.id} className="flex flex-col gap-3 px-5 py-4 md:flex-row md:items-center md:justify-between">
               <div>
-                <p className="font-medium text-slate-900">{post.title}</p>
-                <p className="text-xs text-slate-500">
+                <p className="font-medium text-white">{post.title}</p>
+                <p className="text-xs text-slate-400">
                   {post.author_name} {post.company_name ? `· ${post.company_name}` : ''} · {post.status}
                   {post.published_at ? ` · ${format(parseISO(post.published_at), 'MMM d, yyyy')}` : ''}
                 </p>
@@ -188,7 +188,7 @@ export default function AdminPage() {
               </div>
             </div>
           ))}
-          {!posts?.length && <p className="px-5 py-8 text-sm text-slate-500">No articles yet.</p>}
+          {!posts?.length && <p className="px-5 py-8 text-sm text-slate-400">No articles yet.</p>}
         </div>
       </section>
     </div>

@@ -34,10 +34,10 @@ function ScoreRing({ score, label, color }: { score: number; label: string; colo
   const offset = circumference - (score / 100) * circumference;
 
   return (
-    <div className="flex flex-col items-center rounded-2xl border border-slate-200/80 bg-white/60 p-3">
+    <div className="panel flex flex-col items-center rounded-2xl p-3">
       <div className="relative w-24 h-24">
         <svg className="transform -rotate-90 w-24 h-24">
-          <circle cx="48" cy="48" r="36" fill="none" stroke="#E5E7EB" strokeWidth="8" />
+          <circle cx="48" cy="48" r="36" fill="none" stroke="rgba(255,255,255,0.12)" strokeWidth="8" />
           <circle
             cx="48" cy="48" r="36" fill="none"
             stroke={color} strokeWidth="8"
@@ -48,10 +48,10 @@ function ScoreRing({ score, label, color }: { score: number; label: string; colo
           />
         </svg>
         <div className="absolute inset-0 flex items-center justify-center">
-          <span className="text-2xl font-semibold text-slate-900 [font-family:var(--font-heading)]">{Math.round(score)}</span>
+          <span className="text-2xl font-semibold text-white [font-family:var(--font-heading)]">{Math.round(score)}</span>
         </div>
       </div>
-      <span className="mt-2 text-xs text-slate-600">{label}</span>
+      <span className="mt-2 text-xs text-slate-300">{label}</span>
     </div>
   );
 }
@@ -66,11 +66,11 @@ function StatCard({ title, value, subtitle, icon: Icon, trend }: {
   return (
     <div className="card p-5">
       <div className="flex items-start justify-between mb-3">
-        <p className="text-sm text-slate-600">{title}</p>
+        <p className="text-sm text-slate-300">{title}</p>
         {Icon && <Icon className="w-4 h-4 text-slate-400" />}
       </div>
-      <div className="text-2xl font-semibold text-slate-900 [font-family:var(--font-heading)]">{value}</div>
-      {subtitle && <div className="text-sm text-slate-500 mt-1">{subtitle}</div>}
+      <div className="text-2xl font-semibold text-white [font-family:var(--font-heading)]">{value}</div>
+      {subtitle && <div className="mt-1 text-sm text-slate-400">{subtitle}</div>}
       {trend && (
         <div className={clsx('flex items-center gap-1 mt-2 text-xs', trend.delta > 0 ? 'text-red-600' : 'text-green-600')}>
           {trend.delta > 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
@@ -89,7 +89,7 @@ function AnomalyAlert({ anomaly }: { anomaly: any }) {
   };
 
   return (
-    <div className={clsx('rounded-xl border p-4 flex items-start gap-3', styles[anomaly.severity as keyof typeof styles])}>
+      <div className={clsx('rounded-xl border p-4 flex items-start gap-3 backdrop-blur-xl', styles[anomaly.severity as keyof typeof styles])}>
       <AlertTriangle className="w-4 h-4 mt-0.5 flex-shrink-0" />
       <div>
         <p className="text-sm font-medium">{anomaly.message}</p>
@@ -140,11 +140,11 @@ function WeekInProgressCard({ wip }: { wip: WeekInProgress }) {
   ];
 
   return (
-    <div className="card p-6 border-l-4 border-blue-600">
+    <div className="card border-l-4 border-cyan-300 p-6">
       <div className="flex items-center justify-between mb-4">
         <div>
-          <h2 className="text-sm font-semibold text-slate-800">This Week So Far</h2>
-          <p className="text-xs text-slate-500 mt-0.5">
+          <h2 className="text-sm font-semibold text-white">This Week So Far</h2>
+          <p className="mt-0.5 text-xs text-slate-400">
             {wip.membersWithData} member{wip.membersWithData !== 1 ? 's' : ''} with data
             · {wip.daysCollected} day{wip.daysCollected !== 1 ? 's' : ''} collected
           </p>
@@ -156,8 +156,8 @@ function WeekInProgressCard({ wip }: { wip: WeekInProgress }) {
               className={clsx(
                 'w-5 h-5 rounded-sm text-[9px] font-medium flex items-center justify-center',
                 i < wip.daysCollected
-                  ? 'bg-blue-700 text-white'
-                  : 'bg-slate-100 text-slate-400',
+                  ? 'bg-cyan-300 text-slate-950'
+                  : 'bg-white/10 text-slate-400',
               )}
             >
               {dayNames[i]}
@@ -171,12 +171,12 @@ function WeekInProgressCard({ wip }: { wip: WeekInProgress }) {
           <div key={s.label} className={clsx('rounded-xl p-3', s.bg)}>
             <s.icon className={clsx('w-4 h-4 mb-2', s.color)} />
             <div className={clsx('text-xl font-semibold [font-family:var(--font-heading)]', s.color)}>{s.value}</div>
-            <div className="text-xs text-slate-600 mt-0.5">{s.label}</div>
+            <div className="mt-0.5 text-xs text-slate-300">{s.label}</div>
           </div>
         ))}
       </div>
 
-      <p className="text-xs text-slate-400 mt-4">
+      <p className="mt-4 text-xs text-slate-400">
         Weekly scores publish Monday morning after 7 days of data.
       </p>
     </div>
@@ -228,10 +228,10 @@ export default function TeamDashboardPage() {
   return (
     <div className="space-y-5 reveal-up">
       {/* Header */}
-      <div className="flex items-center justify-between rounded-2xl border border-slate-200/80 bg-white/70 p-4">
+      <div className="panel flex items-center justify-between rounded-2xl p-4">
         <div>
-          <h1 className="text-2xl font-semibold text-slate-900 [font-family:var(--font-heading)]">Team Health Dashboard</h1>
-          <p className="text-slate-600 text-sm mt-1">Aggregate team metrics with zero individual ranking.</p>
+          <h1 className="text-2xl font-semibold text-white [font-family:var(--font-heading)]">Team Health Dashboard</h1>
+          <p className="mt-1 text-sm text-slate-300">Aggregate team metrics with zero individual ranking.</p>
         </div>
         <div className="flex items-center gap-3">
           {latest && <RiskBadge score={latest.avg_burnout_risk_score} />}
@@ -261,7 +261,7 @@ export default function TeamDashboardPage() {
       {/* Score rings — completed week */}
       {latest && (
         <div className="card p-6">
-          <h2 className="text-sm font-semibold text-slate-700 mb-6">Last Week Team Averages</h2>
+          <h2 className="mb-6 text-sm font-semibold text-white">Last Week Team Averages</h2>
           <div className="flex justify-around flex-wrap gap-6">
             <ScoreRing score={latest.avg_burnout_risk_score} label="Burnout Risk" color="#EF4444" />
             <ScoreRing score={latest.avg_meeting_load_score} label="Meeting Load" color="#F59E0B" />
@@ -310,7 +310,7 @@ export default function TeamDashboardPage() {
       {/* Trend chart */}
       {chartData.length > 1 && (
         <div className="card p-6">
-          <h2 className="text-sm font-semibold text-slate-700 mb-4">4-Week Trend</h2>
+          <h2 className="mb-4 text-sm font-semibold text-white">4-Week Trend</h2>
           <ResponsiveContainer width="100%" height={220}>
             <AreaChart data={chartData} margin={{ top: 5, right: 5, bottom: 5, left: 0 }}>
               <defs>
@@ -323,10 +323,10 @@ export default function TeamDashboardPage() {
                   <stop offset="95%" stopColor="#0f766e" stopOpacity={0} />
                 </linearGradient>
               </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-              <XAxis dataKey="week" tick={{ fontSize: 12, fill: '#64748b' }} />
-              <YAxis domain={[0, 100]} tick={{ fontSize: 12, fill: '#64748b' }} />
-              <Tooltip contentStyle={{ fontSize: 12, borderRadius: 10, border: '1px solid #cbd5e1', background: 'rgba(255,255,255,0.95)' }} />
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
+              <XAxis dataKey="week" tick={{ fontSize: 12, fill: '#94a3b8' }} />
+              <YAxis domain={[0, 100]} tick={{ fontSize: 12, fill: '#94a3b8' }} />
+              <Tooltip contentStyle={{ fontSize: 12, borderRadius: 10, border: '1px solid rgba(255,255,255,0.12)', background: 'rgba(8,18,30,0.92)', color: '#e2e8f0' }} />
               <Area type="monotone" dataKey="Burnout Risk" stroke="#ef4444" fill="url(#burnout)" strokeWidth={2.2} dot={{ r: 3 }} />
               <Area type="monotone" dataKey="Focus Score" stroke="#0f766e" fill="url(#focus)" strokeWidth={2.2} dot={{ r: 3 }} />
               <Area type="monotone" dataKey="Meeting Load" stroke="#f59e0b" fill="none" strokeWidth={2} strokeDasharray="4 2" dot={{ r: 3 }} />
@@ -338,7 +338,7 @@ export default function TeamDashboardPage() {
       {/* Insights */}
       {latest?.insights && latest.insights.length > 0 && (
         <div className="card p-6">
-          <h2 className="text-sm font-semibold text-slate-700 mb-4">Actionable Insights</h2>
+          <h2 className="mb-4 text-sm font-semibold text-white">Actionable Insights</h2>
           <div className="space-y-4">
             {latest.insights.map((insight: any, i: number) => (
               <div key={i} className="flex items-start gap-3">
@@ -350,8 +350,8 @@ export default function TeamDashboardPage() {
                   {insight.priority}
                 </span>
                 <div>
-                  <p className="text-sm text-slate-900">{insight.text}</p>
-                  <p className="text-xs text-slate-500 mt-1">{insight.recommendation}</p>
+                  <p className="text-sm text-white">{insight.text}</p>
+                  <p className="mt-1 text-xs text-slate-400">{insight.recommendation}</p>
                 </div>
               </div>
             ))}
@@ -362,12 +362,12 @@ export default function TeamDashboardPage() {
       {/* Integration status */}
       {data?.integrationStatus && data.integrationStatus.length > 0 && (
         <div className="card p-5">
-          <h2 className="text-sm font-semibold text-slate-700 mb-3">Integration Health</h2>
+          <h2 className="mb-3 text-sm font-semibold text-white">Integration Health</h2>
           <div className="flex gap-4">
             {data.integrationStatus.map((int) => (
               <div key={int.type} className="flex items-center gap-2 text-sm">
                 <div className={clsx('w-2 h-2 rounded-full', int.connected > 0 ? 'bg-green-400' : 'bg-gray-300')} />
-                <span className="capitalize text-slate-600">{int.type.replace('_', ' ')}</span>
+                <span className="capitalize text-slate-300">{int.type.replace('_', ' ')}</span>
                 <span className="text-slate-400">({int.connected} connected)</span>
               </div>
             ))}

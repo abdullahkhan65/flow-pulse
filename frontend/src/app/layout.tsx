@@ -80,7 +80,14 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={`${bodyFont.variable} ${headingFont.variable}`}>
-      <body className="ambient-grid text-slate-900 antialiased [font-family:var(--font-body)]">{children}</body>
+      <body className="ambient-grid text-white antialiased [font-family:var(--font-body)]">
+        <div className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
+          <div className="glass-orb glass-orb-cyan left-[-8rem] top-[4rem] h-[22rem] w-[22rem]" />
+          <div className="glass-orb glass-orb-mint right-[-5rem] top-[18rem] h-[20rem] w-[20rem]" />
+          <div className="glass-orb glass-orb-blue bottom-[-7rem] left-1/3 h-[24rem] w-[24rem]" />
+        </div>
+        {children}
+      </body>
     </html>
   );
 }

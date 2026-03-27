@@ -17,7 +17,7 @@ const syncPhases = [
 
 function IntegrationBadge({ label, tone }: { label: string; tone: string }) {
   return (
-    <div className={clsx('flex h-10 w-10 items-center justify-center rounded-lg border text-xs font-semibold', tone)}>
+    <div className={clsx('flex h-10 w-10 items-center justify-center rounded-lg border text-xs font-semibold backdrop-blur-xl', tone)}>
       {label}
     </div>
   );
@@ -53,12 +53,12 @@ function SyncProgress({ onDone }: { onDone: () => void }) {
 
   return (
     <div className="text-center">
-      <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full border border-sky-200 bg-sky-50 text-sm font-semibold text-sky-900">
+      <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full border border-cyan-200/20 bg-white/10 text-sm font-semibold text-cyan-100 backdrop-blur-xl">
         {pct}%
       </div>
       <h2 className="text-2xl font-semibold [font-family:var(--font-heading)]">Syncing your workspace</h2>
-      <p className="mt-2 text-sm text-slate-600">{syncPhases[phase]}</p>
-      <div className="mx-auto mt-6 h-2 w-full max-w-xs overflow-hidden rounded-full bg-slate-200">
+      <p className="mt-2 text-sm text-slate-300">{syncPhases[phase]}</p>
+      <div className="mx-auto mt-6 h-2 w-full max-w-xs overflow-hidden rounded-full bg-white/10">
         <div className="h-full rounded-full bg-gradient-to-r from-blue-700 to-sky-500 transition-all duration-500" style={{ width: `${pct}%` }} />
       </div>
     </div>
@@ -98,24 +98,24 @@ export default function OnboardingPage() {
     <div className="mx-auto flex min-h-screen w-full max-w-5xl items-center px-5 py-10 md:px-8">
       <div className="w-full reveal-up">
         <div className="mb-5 flex items-center justify-between">
-          <div className="inline-flex items-center gap-2 rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-800">
+          <div className="inline-flex items-center gap-2 rounded-full border border-cyan-200/20 bg-white/10 px-3 py-1 text-xs font-semibold text-cyan-100">
             <Sparkles className="h-3.5 w-3.5" />
             Guided setup
           </div>
-          <p className="text-xs text-slate-500">Step {step + 1} of {steps.length}</p>
+          <p className="text-xs text-slate-400">Step {step + 1} of {steps.length}</p>
         </div>
 
         <div className="mb-7 grid grid-cols-4 gap-2">
           {steps.map((label, i) => (
-            <div key={label} className={clsx('h-1.5 rounded-full transition-all', i <= step ? 'bg-blue-700' : 'bg-slate-200')} />
+            <div key={label} className={clsx('h-1.5 rounded-full transition-all', i <= step ? 'bg-cyan-300' : 'bg-white/10')} />
           ))}
         </div>
 
-        <div className="card p-6 md:p-8">
+        <div className="glass-header p-6 md:p-8">
           {step === 0 && (
             <div>
               <h1 className="text-3xl font-semibold [font-family:var(--font-heading)] md:text-4xl">Welcome to FlowPulse</h1>
-              <p className="mt-3 max-w-2xl text-sm leading-relaxed text-slate-600 md:text-base">
+              <p className="mt-3 max-w-2xl text-sm leading-relaxed text-slate-300 md:text-base">
                 This setup links your tools and establishes your first baseline in a few minutes. You can always adjust data controls later.
               </p>
               <div className="mt-8 flex justify-end">
@@ -127,7 +127,7 @@ export default function OnboardingPage() {
           {step === 1 && (
             <div>
               <h2 className="text-2xl font-semibold [font-family:var(--font-heading)]">Privacy commitment</h2>
-              <p className="mt-2 text-sm text-slate-600">FlowPulse is intentionally designed for insight without surveillance.</p>
+              <p className="mt-2 text-sm text-slate-300">FlowPulse is intentionally designed for insight without surveillance.</p>
               <div className="mt-6 grid gap-3 md:grid-cols-2">
                 {[
                   'We use timestamps, durations, and counts',
@@ -135,7 +135,7 @@ export default function OnboardingPage() {
                   'No meeting titles or attendee names are stored',
                   'No individual ranking leaderboard is generated',
                 ].map((item) => (
-                  <div key={item} className="rounded-xl border border-slate-200 bg-white/80 p-3 text-sm text-slate-700">{item}</div>
+                  <div key={item} className="panel p-3 text-sm text-slate-200">{item}</div>
                 ))}
               </div>
               <div className="mt-8 flex gap-3">
@@ -148,24 +148,24 @@ export default function OnboardingPage() {
           {step === 2 && (
             <div>
               <h2 className="text-2xl font-semibold [font-family:var(--font-heading)]">Connect integrations</h2>
-              <p className="mt-2 text-sm text-slate-600">Calendar is already connected from sign-in. Add Slack and Jira for fuller signal quality.</p>
+              <p className="mt-2 text-sm text-slate-300">Calendar is already connected from sign-in. Add Slack and Jira for fuller signal quality.</p>
 
               <div className="mt-6 space-y-3">
                 {[
-                  { type: 'google_calendar', label: 'Google Calendar', detail: 'Meeting load and focus windows', required: true, short: 'GC', tone: 'border-sky-200 bg-sky-50 text-sky-700' },
-                  { type: 'slack', label: 'Slack', detail: 'Interruption and after-hours patterns', required: false, short: 'SL', tone: 'border-fuchsia-200 bg-fuchsia-50 text-fuchsia-700' },
-                  { type: 'jira', label: 'Jira', detail: 'Context-switch and workflow friction', required: false, short: 'JR', tone: 'border-indigo-200 bg-indigo-50 text-indigo-700' },
+                  { type: 'google_calendar', label: 'Google Calendar', detail: 'Meeting load and focus windows', required: true, short: 'GC', tone: 'border-cyan-200/25 bg-cyan-200/10 text-cyan-100' },
+                  { type: 'slack', label: 'Slack', detail: 'Interruption and after-hours patterns', required: false, short: 'SL', tone: 'border-fuchsia-200/25 bg-fuchsia-200/10 text-fuchsia-100' },
+                  { type: 'jira', label: 'Jira', detail: 'Context-switch and workflow friction', required: false, short: 'JR', tone: 'border-indigo-200/25 bg-indigo-200/10 text-indigo-100' },
                 ].map((it) => {
                   const isConnected = connected.includes(it.type);
                   return (
-                    <div key={it.type} className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white/80 p-4">
+                    <div key={it.type} className="panel flex items-center gap-3 p-4">
                       <IntegrationBadge label={it.short} tone={it.tone} />
                       <div className="flex-1">
-                        <p className="text-sm font-semibold text-slate-900">{it.label} {it.required && <span className="ml-1 rounded-full bg-slate-100 px-2 py-0.5 text-[10px]">Required</span>}</p>
-                        <p className="text-xs text-slate-500">{it.detail}</p>
+                        <p className="text-sm font-semibold text-white">{it.label} {it.required && <span className="ml-1 rounded-full bg-white/10 px-2 py-0.5 text-[10px] text-slate-200">Required</span>}</p>
+                        <p className="text-xs text-slate-400">{it.detail}</p>
                       </div>
                       {isConnected ? (
-                        <span className="text-xs font-semibold text-emerald-700">Connected</span>
+                        <span className="text-xs font-semibold text-emerald-200">Connected</span>
                       ) : (
                         <button
                           onClick={() => handleConnect(it.type)}
@@ -193,11 +193,11 @@ export default function OnboardingPage() {
 
           {step === 3 && syncDone && (
             <div className="text-center">
-              <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
+              <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full border border-emerald-200/20 bg-emerald-300/10 text-emerald-100 backdrop-blur-xl">
                 <CheckCircle className="h-8 w-8" />
               </div>
               <h2 className="text-3xl font-semibold [font-family:var(--font-heading)]">You are ready</h2>
-              <p className="mx-auto mt-3 max-w-xl text-sm text-slate-600 md:text-base">
+              <p className="mx-auto mt-3 max-w-xl text-sm text-slate-300 md:text-base">
                 Initial data is synced and your first dashboard is prepared. More confidence builds as additional days are collected.
               </p>
               <button onClick={() => router.push('/dashboard')} className="btn-primary mt-7 w-full py-3">Open dashboard</button>

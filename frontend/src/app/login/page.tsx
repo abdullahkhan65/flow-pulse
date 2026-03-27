@@ -49,19 +49,19 @@ function LoginContent() {
     <div className="mx-auto flex min-h-screen w-full max-w-6xl items-center px-5 py-10 md:px-8">
       <div className="grid w-full items-center gap-8 md:grid-cols-[1.1fr_0.9fr]">
         <div className="reveal-up">
-          <p className="inline-flex items-center gap-2 rounded-full border border-sky-200 bg-sky-50 px-3 py-1 text-xs font-semibold text-sky-900">
+          <p className="inline-flex items-center gap-2 rounded-full border border-cyan-200/20 bg-white/10 px-3 py-1 text-xs font-semibold text-cyan-100">
             <Sparkles className="h-3.5 w-3.5" />
             Secure OAuth onboarding
           </p>
           <h1 className="mt-5 text-4xl font-semibold leading-tight [font-family:var(--font-heading)] md:text-5xl">
             Sign in to your FlowPulse workspace.
           </h1>
-          <p className="mt-4 max-w-lg text-sm leading-relaxed text-slate-600 md:text-base">
+          <p className="mt-4 max-w-lg text-sm leading-relaxed text-slate-300 md:text-base">
             FlowPulse helps engineering leaders detect overload patterns early while preserving trust across the team.
           </p>
         </div>
 
-        <div className="card reveal-up p-7 md:p-8" style={{ animationDelay: '0.08s' }}>
+        <div className="glass-header reveal-up p-7 md:p-8" style={{ animationDelay: '0.08s' }}>
           <div className="mb-6">
             <FlowPulseLogo />
           </div>
@@ -80,9 +80,9 @@ function LoginContent() {
           </a>
 
           <div className="my-5 flex items-center gap-3">
-            <div className="h-px flex-1 bg-slate-200" />
+            <div className="h-px flex-1 bg-white/10" />
             <span className="text-xs text-slate-400">or</span>
-            <div className="h-px flex-1 bg-slate-200" />
+            <div className="h-px flex-1 bg-white/10" />
           </div>
 
           <form onSubmit={onAdminLogin} className="space-y-3">
@@ -108,17 +108,17 @@ function LoginContent() {
             </button>
           </form>
 
-          <div className="mt-5 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-900">
+          <div className="panel glass-tint-emerald mt-5 p-3 text-xs text-emerald-50">
             <p className="inline-flex items-center gap-1.5 font-semibold">
               <Shield className="h-3.5 w-3.5" />
               Privacy guarantee
             </p>
-            <p className="mt-1 text-emerald-800">We never read message content or meeting titles.</p>
+            <p className="mt-1 text-emerald-100/80">We never read message content or meeting titles.</p>
           </div>
 
-          <p className="mt-5 text-center text-xs text-slate-500">
+          <p className="mt-5 text-center text-xs text-slate-400">
             By signing in, you agree to our{' '}
-            <Link href="/privacy" className="font-semibold text-blue-700 hover:text-blue-800">
+            <Link href="/privacy" className="font-semibold text-cyan-200 hover:text-white">
               privacy policy
             </Link>
             .

@@ -17,7 +17,7 @@ const rows: Array<[string, string, string]> = [
 export default function PrivacyPage() {
   return (
     <div className="min-h-screen pb-12">
-      <header className="sticky top-0 z-20 border-b border-white/70 bg-white/70 backdrop-blur-xl">
+      <header className="sticky top-0 z-20 border-b border-white/10 bg-slate-950/20 backdrop-blur-2xl">
         <div className="mx-auto flex h-16 w-full max-w-5xl items-center justify-between px-5 md:px-8">
           <Link href="/" aria-label="FlowPulse home">
             <FlowPulseLogo />
@@ -27,14 +27,14 @@ export default function PrivacyPage() {
       </header>
 
       <main className="mx-auto w-full max-w-5xl px-5 py-10 md:px-8 md:py-14">
-        <section className="card reveal-up p-7 md:p-10">
-          <p className="inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-800">Privacy by default</p>
+        <section className="glass-header reveal-up p-7 md:p-10">
+          <p className="inline-flex rounded-full border border-emerald-200/20 bg-emerald-300/10 px-3 py-1 text-xs font-semibold text-emerald-100">Privacy by default</p>
           <h1 className="mt-4 text-4xl font-semibold leading-tight [font-family:var(--font-heading)] md:text-5xl">
             Transparent data handling.
             <br />
             No hidden collection.
           </h1>
-          <p className="mt-4 max-w-3xl text-sm leading-relaxed text-slate-600 md:text-base">
+          <p className="mt-4 max-w-3xl text-sm leading-relaxed text-slate-300 md:text-base">
             FlowPulse analyzes only structural activity signals to estimate team health. The platform is intentionally built to avoid reading human content.
           </p>
         </section>
@@ -42,7 +42,7 @@ export default function PrivacyPage() {
         <section className="mt-6 grid gap-4 md:grid-cols-2">
           <div className="card p-6">
             <h2 className="text-lg font-semibold [font-family:var(--font-heading)]">What we do</h2>
-            <ul className="mt-3 space-y-2 text-sm text-slate-600">
+            <ul className="mt-3 space-y-2 text-sm text-slate-300">
               <li>Store metadata needed for score calculations.</li>
               <li>Allow one-click export of personal data.</li>
               <li>Allow one-click permanent deletion of personal data.</li>
@@ -50,7 +50,7 @@ export default function PrivacyPage() {
           </div>
           <div className="card p-6">
             <h2 className="text-lg font-semibold [font-family:var(--font-heading)]">What we never do</h2>
-            <ul className="mt-3 space-y-2 text-sm text-slate-600">
+            <ul className="mt-3 space-y-2 text-sm text-slate-300">
               <li>Read Slack messages or email text.</li>
               <li>Store meeting titles or attendee names.</li>
               <li>Generate individual performance ranking leaderboards.</li>
@@ -58,9 +58,9 @@ export default function PrivacyPage() {
           </div>
         </section>
 
-        <section className="card mt-6 overflow-hidden p-0">
+        <section className="glass-table mt-6 p-0">
           <table className="w-full text-left text-sm">
-            <thead className="bg-slate-50 text-xs uppercase tracking-[0.12em] text-slate-500">
+            <thead className="bg-white/5 text-xs uppercase tracking-[0.12em] text-slate-400">
               <tr>
                 <th className="px-4 py-3">Source</th>
                 <th className="px-4 py-3">Stored</th>
@@ -69,10 +69,10 @@ export default function PrivacyPage() {
             </thead>
             <tbody>
               {rows.map(([source, stored, never]) => (
-                <tr key={source} className="border-t border-slate-100">
-                  <td className="px-4 py-3 font-medium text-slate-900">{source}</td>
-                  <td className="px-4 py-3 text-emerald-800">{stored}</td>
-                  <td className="px-4 py-3 text-rose-700">{never}</td>
+                <tr key={source} className="border-t border-white/10">
+                  <td className="px-4 py-3 font-medium text-white">{source}</td>
+                  <td className="px-4 py-3 text-emerald-100">{stored}</td>
+                  <td className="px-4 py-3 text-rose-200">{never}</td>
                 </tr>
               ))}
             </tbody>
@@ -81,7 +81,7 @@ export default function PrivacyPage() {
 
         <section className="card mt-6 p-6">
           <h2 className="text-lg font-semibold [font-family:var(--font-heading)]">Your rights</h2>
-          <p className="mt-2 text-sm text-slate-600">
+          <p className="mt-2 text-sm text-slate-300">
             You can access, export, or erase your data anytime from settings. If you disable collection,
             syncing is stopped and existing personal data is removed.
           </p>

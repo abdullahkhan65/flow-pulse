@@ -116,19 +116,19 @@ function TodayCard({ snapshot }: { snapshot: TodaySnapshot }) {
 
   return (
     <div className="card p-5">
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-sm font-semibold text-slate-700">Today's Snapshot</h2>
+      <div className="mb-4 flex items-center justify-between">
+        <h2 className="text-sm font-semibold text-white">Today's Snapshot</h2>
         <span className="text-xs text-slate-400">{format(new Date(), 'EEEE, MMM d')}</span>
       </div>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {stats.map((s) => (
-          <div key={s.label} className={clsx('rounded-xl border border-white/60 p-4', s.bg)}>
+          <div key={s.label} className={clsx('rounded-xl border border-white/10 p-4 backdrop-blur-xl', s.bg)}>
             <div className="flex items-center justify-between mb-2">
               <s.icon className={clsx('w-4 h-4', s.color)} />
               {s.alert && <AlertTriangle className="w-3.5 h-3.5 text-amber-500" />}
             </div>
             <div className={clsx('text-2xl font-semibold [font-family:var(--font-heading)]', s.color)}>{s.value}</div>
-            <div className="text-xs text-slate-600 mt-0.5 font-medium">{s.label}</div>
+            <div className="mt-0.5 text-xs font-medium text-slate-200">{s.label}</div>
             <div className="text-xs text-slate-400 mt-0.5">{s.sub}</div>
           </div>
         ))}
@@ -171,18 +171,18 @@ function WeekSoFarCard({ data, daysCollected }: {
   ];
 
   return (
-    <div className="card border-l-4 border-blue-600 p-5">
-      <div className="flex items-center justify-between mb-4">
+    <div className="card border-l-4 border-cyan-300 p-5">
+      <div className="mb-4 flex items-center justify-between">
         <div>
-          <h2 className="text-sm font-semibold text-slate-700">This Week So Far</h2>
+          <h2 className="text-sm font-semibold text-white">This Week So Far</h2>
           <p className="text-xs text-slate-400 mt-0.5">Based on {daysCollected} day{daysCollected !== 1 ? 's' : ''} of data</p>
         </div>
       </div>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {stats.map((item) => (
           <div key={item.label}>
-            <div className="text-lg font-semibold text-slate-900 [font-family:var(--font-heading)]">{item.value}</div>
-            <div className="text-xs font-medium text-slate-600">{item.label}</div>
+            <div className="text-lg font-semibold text-white [font-family:var(--font-heading)]">{item.value}</div>
+            <div className="text-xs font-medium text-slate-300">{item.label}</div>
             <div className="text-xs text-slate-400">{item.sub}</div>
           </div>
         ))}
@@ -248,7 +248,7 @@ function SyncingState({ onDone }: { onDone: (data: PreviewData) => void }) {
           <Calendar className="w-6 h-6 text-blue-700" />
         </div>
       </div>
-      <h3 className="mb-2 font-semibold text-slate-900 [font-family:var(--font-heading)]">Syncing your data...</h3>
+      <h3 className="mb-2 font-semibold text-white [font-family:var(--font-heading)]">Syncing your data...</h3>
       <p className="mb-6 max-w-xs text-sm text-slate-500">{phases[phase]}</p>
       <div className="flex gap-1">
         {phases.map((_, i) => (
@@ -268,10 +268,10 @@ function SyncingState({ onDone }: { onDone: (data: PreviewData) => void }) {
 function NoIntegrationState() {
   return (
     <div className="card p-12 text-center">
-      <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-slate-100">
-        <Calendar className="h-8 w-8 text-slate-400" />
+      <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-white/10 backdrop-blur-xl">
+        <Calendar className="h-8 w-8 text-slate-300" />
       </div>
-      <h3 className="mb-2 font-semibold text-slate-900 [font-family:var(--font-heading)]">No integrations connected</h3>
+      <h3 className="mb-2 font-semibold text-white [font-family:var(--font-heading)]">No integrations connected</h3>
       <p className="mx-auto mb-6 max-w-xs text-sm text-slate-500">
         Connect Google Calendar to start seeing your meeting load, focus time, and work pattern data.
       </p>
@@ -288,13 +288,13 @@ function ScoreCard({ label, score, description, color }: {
   return (
     <div className="card p-5">
       <div className="flex items-center justify-between mb-3">
-        <span className="text-sm text-slate-600">{label}</span>
+        <span className="text-sm text-slate-300">{label}</span>
         <span className="text-xl font-semibold [font-family:var(--font-heading)]" style={{ color }}>{Math.round(score)}</span>
       </div>
       <div className="mb-3 h-2 overflow-hidden rounded-full bg-slate-200">
         <div className="h-full rounded-full transition-all duration-700" style={{ width: `${score}%`, backgroundColor: color }} />
       </div>
-      <p className="text-xs text-slate-500">{description}</p>
+      <p className="text-xs text-slate-400">{description}</p>
     </div>
   );
 }
@@ -308,7 +308,7 @@ function SignalCoverageCard({ coverage }: { coverage: PreviewData['signalCoverag
 
   return (
     <div className="card p-4">
-      <h2 className="text-sm font-semibold text-slate-700 mb-3">Confidence by Signal</h2>
+      <h2 className="mb-3 text-sm font-semibold text-white">Confidence by Signal</h2>
       <div className="grid md:grid-cols-3 gap-3">
         {chips.map((chip) => (
           <div key={chip.key} className={clsx('rounded-xl border p-3', chip.tone)}>
@@ -383,10 +383,10 @@ export default function MyScoresPage() {
   if (syncing) {
     return (
       <div className="space-y-6 reveal-up">
-        <div className="rounded-2xl border border-slate-200/80 bg-white/70 p-4">
-          <div>
-            <h1 className="text-2xl font-semibold text-slate-900 [font-family:var(--font-heading)]">My Scores</h1>
-            <p className="mt-1 text-sm text-slate-600">Your personal health signals</p>
+      <div className="panel rounded-2xl p-4">
+        <div>
+            <h1 className="text-2xl font-semibold text-white [font-family:var(--font-heading)]">My Scores</h1>
+            <p className="mt-1 text-sm text-slate-300">Your personal health signals</p>
           </div>
         </div>
         <SyncingState onDone={handleSyncDone} />
@@ -405,10 +405,10 @@ export default function MyScoresPage() {
   return (
     <div className="space-y-5 reveal-up">
       {/* Header */}
-      <div className="flex items-center justify-between rounded-2xl border border-slate-200/80 bg-white/70 p-4">
+      <div className="panel flex items-center justify-between rounded-2xl p-4">
         <div>
-          <h1 className="text-2xl font-semibold text-slate-900 [font-family:var(--font-heading)]">My Scores</h1>
-          <p className="text-slate-600 text-sm mt-1">Your personal health signals — visible only to you and your manager.</p>
+          <h1 className="text-2xl font-semibold text-white [font-family:var(--font-heading)]">My Scores</h1>
+          <p className="mt-1 text-sm text-slate-300">Your personal health signals — visible only to you and your manager.</p>
         </div>
         <div className="flex items-center gap-3">
           {activePreview && <DataFreshnessChip lastSyncedAt={activePreview.lastSyncedAt} />}
@@ -440,11 +440,11 @@ export default function MyScoresPage() {
           {!hasWeeklyScores && activePreview?.daysCollected !== undefined && (
             <div className="space-y-4">
               {/* Confidence / data collection progress banner */}
-              <div className="card p-4 flex items-start gap-3 border-sky-200 bg-sky-50">
+              <div className="glass-tint-blue card flex items-start gap-3 p-4">
                 <Info className="w-4 h-4 text-blue-700 mt-0.5 flex-shrink-0" />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <p className="text-sm font-medium text-sky-900">
+                    <p className="text-sm font-medium text-cyan-50">
                       Week in progress
                     </p>
                     <ConfidenceBadge
@@ -453,20 +453,20 @@ export default function MyScoresPage() {
                       needed={activePreview.daysNeededForFull}
                     />
                   </div>
-                  <p className="text-xs text-sky-800 mt-1">
+                  <p className="mt-1 text-xs text-cyan-100/85">
                     {activePreview.daysCollected === 0
                       ? 'Your calendar was just synced. Data will appear below after the first day is processed.'
                       : `Scores shown below are estimated from ${activePreview.daysCollected} day${activePreview.daysCollected !== 1 ? 's' : ''} of data. Full scores are computed after 7 days.`}
                   </p>
                   {/* Progress bar */}
                   <div className="mt-3 flex items-center gap-2">
-                    <div className="flex-1 h-1.5 bg-sky-200 rounded-full overflow-hidden">
+                    <div className="flex-1 h-1.5 overflow-hidden rounded-full bg-white/10">
                       <div
                         className="h-full bg-sky-600 rounded-full transition-all duration-700"
                         style={{ width: `${Math.min(100, (activePreview.daysCollected / activePreview.daysNeededForFull) * 100)}%` }}
                       />
                     </div>
-                    <span className="text-xs text-sky-700 font-medium">
+                    <span className="text-xs font-medium text-cyan-100">
                       {activePreview.daysNeededForFull - activePreview.daysCollected} day{activePreview.daysNeededForFull - activePreview.daysCollected !== 1 ? 's' : ''} until full scores
                     </span>
                   </div>
@@ -485,7 +485,7 @@ export default function MyScoresPage() {
               {activePreview.partialScores && (
                 <div>
                   <div className="flex items-center justify-between mb-3">
-                    <h2 className="text-sm font-semibold text-slate-700">Estimated Scores</h2>
+                    <h2 className="text-sm font-semibold text-white">Estimated Scores</h2>
                     <ConfidenceBadge
                       confidence={activePreview.confidence}
                       days={activePreview.daysCollected}

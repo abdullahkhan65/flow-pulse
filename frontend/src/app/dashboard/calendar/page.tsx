@@ -19,7 +19,7 @@ function CalendarCell({ day }: { day: TeamCalendarDay | undefined }) {
 
   if (!day) {
     return (
-      <div className="h-14 rounded-lg border border-slate-100 bg-slate-50/50" />
+      <div className="h-14 rounded-lg border border-white/10 bg-white/5" />
     );
   }
 
@@ -33,27 +33,27 @@ function CalendarCell({ day }: { day: TeamCalendarDay | undefined }) {
     >
       <div
         className={clsx(
-          'h-14 rounded-lg border flex flex-col items-center justify-center gap-0.5 cursor-default select-none transition-all',
+          'h-14 rounded-lg border flex cursor-default select-none flex-col items-center justify-center gap-0.5 transition-all backdrop-blur-xl',
           c.bg, c.border,
         )}
       >
         <span className={clsx('text-xs font-semibold', c.text)}>{c.label}</span>
-        <span className="text-[10px] text-slate-500">{day.meetingMinutes}min</span>
+        <span className="text-[10px] text-slate-300">{day.meetingMinutes}min</span>
       </div>
 
       {/* Tooltip */}
       {hovered && (
-        <div className="absolute z-50 bottom-full left-1/2 -translate-x-1/2 mb-2 w-44 rounded-xl border border-slate-200 bg-white shadow-lg p-3 text-xs space-y-1 pointer-events-none">
-          <p className="font-semibold text-slate-800 mb-1">{day.memberName}</p>
-          <div className="flex justify-between text-slate-600">
+        <div className="absolute bottom-full left-1/2 z-50 mb-2 w-44 -translate-x-1/2 space-y-1 rounded-xl border border-white/10 bg-slate-950/85 p-3 text-xs shadow-lg backdrop-blur-2xl pointer-events-none">
+          <p className="mb-1 font-semibold text-white">{day.memberName}</p>
+          <div className="flex justify-between text-slate-300">
             <span>Meetings</span>
             <span className="font-medium">{day.meetingCount} ({day.meetingMinutes} min)</span>
           </div>
-          <div className="flex justify-between text-slate-600">
+          <div className="flex justify-between text-slate-300">
             <span>Focus time</span>
             <span className="font-medium">{day.focusMinutes} min</span>
           </div>
-          <div className="flex justify-between text-slate-600">
+          <div className="flex justify-between text-slate-300">
             <span>After-hours</span>
             <span className="font-medium">{day.afterHoursEvents} events</span>
           </div>
@@ -122,32 +122,32 @@ export default function TeamCalendarPage() {
   return (
     <div className="space-y-5 reveal-up">
       {/* Header */}
-      <div className="flex items-center justify-between rounded-2xl border border-slate-200/80 bg-white/70 p-4">
+      <div className="panel flex items-center justify-between rounded-2xl p-4">
         <div>
-          <h1 className="text-2xl font-semibold text-slate-900 [font-family:var(--font-heading)]">Team Calendar</h1>
-          <p className="text-slate-600 text-sm mt-1">Weekly busyness heatmap — plan meetings on low-load days</p>
+          <h1 className="text-2xl font-semibold text-white [font-family:var(--font-heading)]">Team Calendar</h1>
+          <p className="mt-1 text-sm text-slate-300">Weekly busyness heatmap — plan meetings on low-load days</p>
         </div>
 
         {/* Week navigator */}
         <div className="flex items-center gap-2">
           <button
             onClick={() => setWeekStart((w) => subWeeks(w, 1))}
-            className="p-2 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-600"
+            className="rounded-xl border border-white/10 p-2 text-slate-300 hover:bg-white/10"
           >
             <ChevronLeft className="w-4 h-4" />
           </button>
-          <span className="text-sm font-medium text-slate-700 min-w-[140px] text-center">
+          <span className="min-w-[140px] text-center text-sm font-medium text-white">
             {format(weekStart, 'MMM d')} – {format(addDays(weekStart, 4), 'MMM d, yyyy')}
           </span>
           <button
             onClick={() => setWeekStart((w) => addWeeks(w, 1))}
-            className="p-2 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-600"
+            className="rounded-xl border border-white/10 p-2 text-slate-300 hover:bg-white/10"
           >
             <ChevronRight className="w-4 h-4" />
           </button>
           <button
             onClick={() => setWeekStart(startOfWeek(new Date(), { weekStartsOn: 1 }))}
-            className="text-xs px-3 py-2 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 ml-1"
+            className="ml-1 rounded-xl border border-white/10 px-3 py-2 text-xs text-slate-300 hover:bg-white/10"
           >
             This week
           </button>
@@ -155,9 +155,9 @@ export default function TeamCalendarPage() {
       </div>
 
       {/* Privacy note */}
-      <div className="flex items-start gap-2 rounded-xl border border-sky-200 bg-sky-50 p-3">
+      <div className="glass-tint-blue card flex items-start gap-2 rounded-xl p-3">
         <AlertTriangle className="w-4 h-4 text-blue-500 mt-0.5 flex-shrink-0" />
-        <p className="text-xs text-blue-700">
+        <p className="text-xs text-cyan-100">
           Load levels are derived from meeting duration and after-hours activity only — no content is displayed.
           Only members who have enabled data collection are shown.
         </p>
@@ -165,36 +165,36 @@ export default function TeamCalendarPage() {
 
       {/* Grid */}
       {members.length === 0 ? (
-        <div className="card p-12 text-center text-slate-500 text-sm">
+        <div className="card p-12 text-center text-sm text-slate-300">
           No data available for this week yet. Sync your calendar to see load levels.
         </div>
       ) : (
-        <div className="card overflow-hidden">
+        <div className="glass-table">
           {/* Day headers */}
           <div
-            className="grid border-b border-slate-200 bg-slate-50/80"
+            className="grid border-b border-white/10 bg-white/5"
             style={{ gridTemplateColumns: `180px repeat(5, 1fr)` }}
           >
             <div className="px-4 py-3" />
             {days.map((d) => (
               <div key={d.toISOString()} className="px-2 py-3 text-center">
-                <p className="text-xs font-semibold text-slate-600 uppercase tracking-wide">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
                   {format(d, 'EEE')}
                 </p>
-                <p className="text-sm font-medium text-slate-800">{format(d, 'MMM d')}</p>
+                <p className="text-sm font-medium text-white">{format(d, 'MMM d')}</p>
               </div>
             ))}
           </div>
 
           {/* Member rows */}
-          <div className="divide-y divide-slate-100">
+          <div className="divide-y divide-white/10">
             {members.map((member) => (
               <div
                 key={member.name}
                 className="grid items-center gap-2 px-4 py-3"
                 style={{ gridTemplateColumns: `180px repeat(5, 1fr)` }}
               >
-                <div className="text-sm font-medium text-slate-800 truncate pr-2">{member.name}</div>
+                <div className="truncate pr-2 text-sm font-medium text-white">{member.name}</div>
                 {days.map((d) => {
                   const dateStr = format(d, 'yyyy-MM-dd');
                   return (
@@ -210,7 +210,7 @@ export default function TeamCalendarPage() {
       {/* Legend + best day insight */}
       <div className="flex items-center justify-between">
         {/* Legend */}
-        <div className="flex items-center gap-4 text-xs text-slate-500">
+        <div className="flex items-center gap-4 text-xs text-slate-400">
           <span className="font-medium">Load level:</span>
           {Object.entries(LOAD_COLORS).map(([key, val]) => (
             <span key={key} className="flex items-center gap-1.5">
@@ -222,7 +222,7 @@ export default function TeamCalendarPage() {
 
         {/* Best day insight */}
         {bestDay && members.length > 0 && (
-          <div className="rounded-xl border border-green-200 bg-green-50 px-4 py-2 text-xs text-green-800">
+          <div className="rounded-xl border border-emerald-200/20 bg-emerald-300/10 px-4 py-2 text-xs text-emerald-100 backdrop-blur-xl">
             Best day to schedule a team meeting:{' '}
             <span className="font-semibold">{format(bestDay, 'EEEE, MMM d')}</span>
           </div>
